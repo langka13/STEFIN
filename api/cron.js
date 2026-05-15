@@ -1,18 +1,7 @@
 import admin from 'firebase-admin';
 import nodemailer from 'nodemailer';
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // Vercel ENV replaces newlines with escaped \\n, so we restore them
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
-}
-
-const db = admin.firestore();
+let db;
 
 export default async function handler(req, res) {
   // Mode test via query parameter (?test=true)
@@ -27,6 +16,21 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (!admin.apps.length) {
+      if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+        throw new Error("Missing Firebase credentials in Vercel Environment Variables.");
+      }
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          // Remove stray quotes and restore newlines
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/"/g, ''),
+        }),
+      });
+    }
+    if (!db) db = admin.firestore();
+
     // 2. Setup Nodemailer menggunakan Gmail
     const transporter = nodemailer.createTransport({
       service: 'gmail',
