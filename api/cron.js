@@ -20,12 +20,24 @@ export default async function handler(req, res) {
       if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
         throw new Error("Missing Firebase credentials in Vercel Environment Variables.");
       }
+
+      // Robust Private Key Parsing
+      let pk = process.env.FIREBASE_PRIVATE_KEY;
+      // 1. Remove wrapping quotes if they accidentally copied them
+      pk = pk.replace(/^"|"$/g, '');
+      // 2. Replace literal \n with actual newlines
+      pk = pk.replace(/\\n/g, '\n');
+      
+      // 3. Validate format
+      if (!pk.includes('BEGIN PRIVATE KEY') || !pk.includes('END PRIVATE KEY')) {
+        throw new Error("Private Key format is invalid. Make sure you copied everything from '-----BEGIN PRIVATE KEY-----' to '-----END PRIVATE KEY-----'.");
+      }
+
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          // Remove stray quotes and restore newlines
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n').replace(/"/g, ''),
+          privateKey: pk,
         }),
       });
     }
