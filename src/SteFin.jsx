@@ -26,49 +26,52 @@ import AssetsPage             from './AssetsPage'
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TAXONOMY = {
   Kebutuhan: {
-    'Makan & Minum':   ['Makan Harian', 'Jajan', 'Groceries'],
-    Transportasi:      ['Bensin', 'Parkir', 'Ojek/Taxi', 'Servis Kendaraan'],
-    'Tempat Tinggal':  ['Kost/Sewa', 'Listrik', 'Air', 'Internet'],
-    Kesehatan:         ['Obat', 'Dokter', 'Asuransi Kesehatan'],
-    Pendidikan:        ['UKT/SPP', 'Buku', 'Kursus'],
+    'Pangan':              ['Belanja Dapur (Groceries)', 'Air Minum'],
+    'Tempat Tinggal':      ['Biaya Sewa/Kontrak', 'Iuran Lingkungan'],
+    'Utilitas Dasar':      ['Listrik', 'Air (PDAM)'],
+    'Kesehatan Dasar':     ['Obat Rutin', 'BPJS Kesehatan'],
+    'Transportasi Wajib':  ['Bensin/Tol/Parkir', 'Transportasi Umum'],
+    'Komunikasi':          ['Paket Data & Pulsa'],
   },
   Kewajiban: {
-    'Keluarga & Sosial': ['Orang Tua', 'Zakat/Sedekah', 'Sumbangan'],
-    Cicilan:             ['Cicilan Bank', 'Leasing', 'Pinjaman Personal'],
-    Tagihan:             ['Kartu Kredit', 'BPJS', 'Pajak'],
+    'Asuransi':            ['Premi Jiwa', 'Kesehatan Swasta', 'Penyakit Kritis'],
+    'Sosial & Agama':      ['Orang Tua', 'Zakat', 'Persepuluhan', 'Infaq Rutin'],
+    'Pajak':               ['Pajak Kendaraan (STNK)', 'Pajak Bumi & Bangunan (PBB)'],
+    'Pendidikan':          ['SPP Sekolah/Kuliah', 'Kursus Rutin'],
+    'Cicilan Utang':       ['KPR', 'Kredit Kendaraan', 'Kartu Kredit'],
   },
   Keinginan: {
-    Hiburan:      ['Bioskop', 'Streaming', 'Game'],
-    'Self Reward':['Belanja Pakaian', 'Skincare', 'Gadget'],
-    Rekreasi:     ['Liburan', 'Ngapel', 'Nongkrong'],
-    Hobi:         ['Buku', 'Olahraga', 'Musik'],
+    'Hiburan':             ['Langganan Digital', 'Tiket Bioskop'],
+    'Gaya Hidup':          ['Makan di Luar', 'Kopi/Camilan'],
+    'Belanja':             ['Pakaian (Fashion)', 'Aksesori', 'Gadget'],
+    'Hobi & Liburan':      ['Travelling', 'Alat Hobi', 'Self-reward'],
+    'Perawatan Diri':      ['Skincare', 'Salon/Barbershop'],
   },
 }
 
 const INCOME_CATEGORIES = {
-  'Pendapatan Aktif': ['Gaji Pokok', 'Tunjangan', 'Bonus', 'Overtime'],
-  'Pendapatan Pasif': ['Freelance', 'Profit Usaha', 'Dividen', 'Capital Gain', 'Bunga'],
+  'Pemasukan Aktif':      ['Gaji Pokok', 'Tunjangan', 'Lembur (Overtime)'],
+  'Pemasukan Sampingan':  ['Freelance / Project', 'Komisi / Affiliate', 'Hasil Penjualan Bisnis'],
+  'Pemasukan Pasif':      ['Dividen Saham', 'Bunga Deposito / Kupon Obligasi', 'Sewa Properti'],
+  'Pemasukan Lain-lain':  ['Bonus / THR', 'Hadiah / Give-away', 'Pengembalian Pajak'],
 }
 
 const ASSET_CATEGORIES = {
-  Investasi: ['Reksa Dana', 'Saham', 'Crypto', 'Deposito', 'Obligasi', 'Emas Batangan'],
-  'Aset Tetap': ['Tanah', 'Rumah/Apartemen', 'Ruko', 'Mobil', 'Motor', 'Sepeda'],
-  'Perhiasan & Barang Berharga': ['Perhiasan'],
-  'Modal Usaha': ['Modal PPOB', 'Modal Dagang'],
-  Settlement: ['Pelunasan Piutang'],
+  'Kas & Likuid':   ['Tabungan Bank', 'Dana Darurat', 'Kas Tunai'],
+  'Investasi':      ['Logam Mulia (Emas)', 'Saham', 'Reksadana', 'Obligasi', 'Aset Kripto'],
+  'Aset Fisik':     ['Properti (Tanah/Rumah)', 'Kendaraan'],
+  Settlement:       ['Pelunasan Piutang'],
 }
 
 const DEBT_CATEGORIES = {
-  'Pinjaman Bank': ['KTA', 'KPR', 'Kredit Kendaraan', 'Kredit Usaha'],
-  'Kartu Kredit': ['Tagihan Kartu Kredit'],
-  'Paylater': ['Shopee Paylater', 'GoPayLater', 'Lainnya'],
-  'Utang Personal': ['Pinjam Teman', 'Pinjam Keluarga', 'Lainnya'],
-  Pelunasan: ['Bayar Utang'],
+  'Jangka Panjang':  ['KPR (Mortgage)', 'Kredit Kendaraan (KKB)', 'Utang Modal Usaha'],
+  'Jangka Pendek':   ['Tagihan Kartu Kredit', 'Paylater', 'Pinjaman Personal'],
+  Pelunasan:         ['Bayar Utang'],
 }
 
 const TRANSFER_CATEGORIES = {
-  'Transfer': ['Pindah Rekening', 'Tarik Tunai'],
-  'Piutang': ['Pinjaman Teman', 'Kasbon Karyawan', 'Lainnya'],
+  'Internal Transfer': ['Antar Bank', 'Top-up E-Wallet', 'Tarik Tunai ATM'],
+  'Piutang':           ['Pemberian Pinjaman', 'Pelunasan Piutang'],
 }
 
 const LEVELS = ['Kebutuhan', 'Kewajiban', 'Keinginan']
