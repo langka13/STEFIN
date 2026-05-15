@@ -1,0 +1,126 @@
+import admin from 'firebase-admin';
+import nodemailer from 'nodemailer';
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // Vercel ENV replaces newlines with escaped \\n, so we restore them
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+const db = admin.firestore();
+
+export default async function handler(req, res) {
+  // 1. Verifikasi Vercel Cron Secret (Agar API ini tidak bisa ditembak sembarangan oleh orang luar)
+  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).end('Unauthorized');
+  }
+
+  try {
+    // 2. Setup Nodemailer menggunakan Gmail
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER, // Alamat Gmail Anda
+        pass: process.env.GMAIL_PASS, // App Password 16-digit dari Google Account
+      },
+    });
+
+    // 3. Tentukan bulan laporan (Bulan Sebelumnya)
+    const now = new Date();
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const targetMonthStr = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    
+    // Nama bulan untuk bahasa Indonesia
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const targetMonthLabel = `${months[lastMonthDate.getMonth()]} ${lastMonthDate.getFullYear()}`;
+
+    // 4. Ambil data seluruh user
+    const usersSnapshot = await db.collection('users').get();
+    const emailPromises = [];
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      if (!userData.email) continue;
+
+      // 5. Ambil transaksi user di bulan target
+      const txSnapshot = await db.collection('users').doc(userDoc.id).collection('transactions')
+        .where('date', '>=', `${targetMonthStr}-01`)
+        .where('date', '<=', `${targetMonthStr}-31`)
+        .get();
+
+      let income = 0;
+      let expense = 0;
+
+      txSnapshot.forEach(doc => {
+        const tx = doc.data();
+        if (tx.type === 'income') income += tx.amount || 0;
+        if (tx.type === 'expense') expense += tx.amount || 0;
+      });
+
+      // Lewati pengiriman email jika user tidak ada transaksi di bulan tersebut
+      if (income === 0 && expense === 0) continue;
+
+      const fmt = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
+      // 6. Buat Template HTML
+      const html = `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+          <div style="background-color: #10B981; color: white; padding: 24px; text-align: center;">
+            <h2 style="margin: 0;">SteFin Financial Statement</h2>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">Ringkasan Keuangan Anda - ${targetMonthLabel}</p>
+          </div>
+          <div style="padding: 32px; background-color: #ffffff;">
+            <p>Halo <strong>${userData.name || 'Pengguna SteFin'}</strong>,</p>
+            <p>Berikut adalah ringkasan arus kas Anda selama bulan <strong>${targetMonthLabel}</strong>:</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 12px 0; color: #64748b;">Total Pemasukan</td>
+                <td style="padding: 12px 0; text-align: right; color: #10B981; font-weight: bold;">${fmt(income)}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 12px 0; color: #64748b;">Total Pengeluaran</td>
+                <td style="padding: 12px 0; text-align: right; color: #EF4444; font-weight: bold;">${fmt(expense)}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 0; font-weight: bold;">Net Savings (Selisih)</td>
+                <td style="padding: 12px 0; text-align: right; font-weight: bold; font-size: 1.1em; color: ${(income - expense) >= 0 ? '#10B981' : '#EF4444'};">${fmt(income - expense)}</td>
+              </tr>
+            </table>
+
+            <p style="margin-top: 32px; font-size: 14px; color: #64748b; line-height: 1.5;">
+              Terus pantau arus kas Anda untuk mencapai kebebasan finansial.<br/>
+              Buka aplikasi SteFin untuk melihat detail transaksi selengkapnya.
+            </p>
+          </div>
+          <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
+            &copy; ${now.getFullYear()} SteFin (Smart Personal Finance). Pesan ini dibuat secara otomatis. Harap jangan membalas email ini.
+          </div>
+        </div>
+      `;
+
+      // 7. Simpan proses pengiriman ke array Promise
+      emailPromises.push(
+        transporter.sendMail({
+          from: `"SteFin Assistant" <${process.env.GMAIL_USER}>`,
+          to: userData.email,
+          subject: `Laporan Keuangan SteFin - ${targetMonthLabel}`,
+          html: html,
+        })
+      );
+    }
+
+    // Eksekusi pengiriman massal
+    await Promise.all(emailPromises);
+
+    return res.status(200).json({ success: true, emailsSent: emailPromises.length });
+  } catch (error) {
+    console.error('CRON ERROR:', error);
+    return res.status(500).json({ error: error.message });
+  }
+}
