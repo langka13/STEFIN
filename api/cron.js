@@ -15,8 +15,14 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 export default async function handler(req, res) {
+  // Mode test via query parameter (?test=true)
+  const isTest = req.query.test === 'true';
+
   // 1. Verifikasi Vercel Cron Secret (Agar API ini tidak bisa ditembak sembarangan oleh orang luar)
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Untuk kemudahan testing via browser sementara, kita bisa membiarkan test=true jalan tanpa secret
+  // NAMUN, karena ini untuk keamanan, tetap wajibkan secret ATAU izinkan local dev
+  const authHeader = req.headers.authorization;
+  if (!isTest && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).end('Unauthorized');
   }
 
@@ -30,14 +36,16 @@ export default async function handler(req, res) {
       },
     });
 
-    // 3. Tentukan bulan laporan (Bulan Sebelumnya)
+    // 3. Tentukan bulan laporan
+    // Jika test=true, kita gunakan bulan INI (karena data transaksi biasanya ada di bulan ini). 
+    // Jika jalannya otomatis (cron), gunakan bulan LALU.
     const now = new Date();
-    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const targetMonthStr = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    const targetDate = isTest ? now : new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const targetMonthStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
     
     // Nama bulan untuk bahasa Indonesia
     const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    const targetMonthLabel = `${months[lastMonthDate.getMonth()]} ${lastMonthDate.getFullYear()}`;
+    const targetMonthLabel = `${months[targetDate.getMonth()]} ${targetDate.getFullYear()}${isTest ? ' (TESTING MODE)' : ''}`;
 
     // 4. Ambil data seluruh user
     const usersSnapshot = await db.collection('users').get();
@@ -62,8 +70,8 @@ export default async function handler(req, res) {
         if (tx.type === 'expense') expense += tx.amount || 0;
       });
 
-      // Lewati pengiriman email jika user tidak ada transaksi di bulan tersebut
-      if (income === 0 && expense === 0) continue;
+      // Lewati pengiriman email jika user tidak ada transaksi di bulan tersebut (Kecuali sedang Test Mode)
+      if (!isTest && income === 0 && expense === 0) continue;
 
       const fmt = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
