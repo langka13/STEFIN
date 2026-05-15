@@ -78,16 +78,27 @@ export default async function handler(req, res) {
     const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const targetMonthLabel = `${months[targetDate.getMonth()]} ${targetDate.getFullYear()}${isTest ? ' (TESTING MODE)' : ''}`;
 
-    // 4. Ambil data seluruh user
-    const usersSnapshot = await db.collection('users').get();
+    // 4. Ambil data seluruh user dari Firebase Auth (karena email ada di sistem Auth)
+    const listUsersResult = await admin.auth().listUsers();
     const emailPromises = [];
 
-    for (const userDoc of usersSnapshot.docs) {
-      const userData = userDoc.data();
-      if (!userData.email) continue;
+    for (const userRecord of listUsersResult.users) {
+      if (!userRecord.email) continue;
+      const uid = userRecord.uid;
+
+      // Ambil nama user dari profile jika ada (fallback ke display name auth)
+      let userName = userRecord.displayName || 'Pengguna SteFin';
+      try {
+        const profileSnap = await db.collection('users').doc(uid).collection('meta').doc('profile').get();
+        if (profileSnap.exists && profileSnap.data().name) {
+          userName = profileSnap.data().name;
+        }
+      } catch (e) {
+        // Abaikan jika tidak ada profil
+      }
 
       // 5. Ambil transaksi user di bulan target
-      const txSnapshot = await db.collection('users').doc(userDoc.id).collection('transactions')
+      const txSnapshot = await db.collection('users').doc(uid).collection('transactions')
         .where('date', '>=', `${targetMonthStr}-01`)
         .where('date', '<=', `${targetMonthStr}-31`)
         .get();
@@ -114,7 +125,7 @@ export default async function handler(req, res) {
             <p style="margin: 5px 0 0 0; opacity: 0.9;">Ringkasan Keuangan Anda - ${targetMonthLabel}</p>
           </div>
           <div style="padding: 32px; background-color: #ffffff;">
-            <p>Halo <strong>${userData.name || 'Pengguna SteFin'}</strong>,</p>
+            <p>Halo <strong>${userName}</strong>,</p>
             <p>Berikut adalah ringkasan arus kas Anda selama bulan <strong>${targetMonthLabel}</strong>:</p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
@@ -147,7 +158,7 @@ export default async function handler(req, res) {
       emailPromises.push(
         transporter.sendMail({
           from: `"SteFin Assistant" <${process.env.GMAIL_USER}>`,
-          to: userData.email,
+          to: userRecord.email,
           subject: `Laporan Keuangan SteFin - ${targetMonthLabel}`,
           html: html,
         })
