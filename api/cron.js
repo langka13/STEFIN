@@ -1,5 +1,57 @@
 import admin from 'firebase-admin';
 import nodemailer from 'nodemailer';
+import PDFDocument from 'pdfkit-table';
+
+const fmt = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
+function generatePDFBuffer(userName, targetMonthLabel, income, expense, transactions) {
+  return new Promise((resolve) => {
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    let buffers = [];
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => {
+      resolve(Buffer.concat(buffers));
+    });
+
+    // Header
+    doc.font('Helvetica-Bold').fontSize(20).text('SteFin Financial Statement', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.font('Helvetica').fontSize(12).text(`Laporan Rincian Arus Kas`, { align: 'center', color: 'grey' });
+    doc.moveDown(2);
+    
+    // User Info
+    doc.font('Helvetica-Bold').fontSize(12).text(`Nama Pengguna:`, { continued: true }).font('Helvetica').text(` ${userName}`);
+    doc.font('Helvetica-Bold').text(`Periode Laporan:`, { continued: true }).font('Helvetica').text(` ${targetMonthLabel}`);
+    doc.moveDown();
+
+    // Summary Box
+    doc.font('Helvetica-Bold').text(`Ringkasan Finansial:`);
+    doc.font('Helvetica').text(`Total Pemasukan   : ${fmt(income)}`);
+    doc.text(`Total Pengeluaran : ${fmt(expense)}`);
+    const net = income - expense;
+    doc.font('Helvetica-Bold').text(`Net Savings       : ${fmt(net)}`, { underline: true });
+    doc.moveDown(2);
+
+    // Table Data
+    const tableArray = {
+      headers: ['Tanggal', 'Kategori', 'Tipe', 'Catatan', 'Nominal'],
+      rows: transactions.map(tx => [
+        tx.date || '-',
+        tx.level1 || tx.category || '-',
+        tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran',
+        tx.note || '-',
+        fmt(tx.amount || 0)
+      ])
+    };
+
+    doc.table(tableArray, {
+      prepareHeader: () => doc.font('Helvetica-Bold').fontSize(10),
+      prepareRow: () => doc.font('Helvetica').fontSize(9)
+    });
+
+    doc.end();
+  });
+}
 
 let db;
 
@@ -105,17 +157,23 @@ export default async function handler(req, res) {
 
       let income = 0;
       let expense = 0;
+      const txList = [];
 
       txSnapshot.forEach(doc => {
         const tx = doc.data();
+        txList.push(tx);
         if (tx.type === 'income') income += tx.amount || 0;
         if (tx.type === 'expense') expense += tx.amount || 0;
       });
 
+      // Urutkan transaksi berdasarkan tanggal untuk PDF
+      txList.sort((a, b) => new Date(a.date) - new Date(b.date));
+
       // Lewati pengiriman email jika user tidak ada transaksi di bulan tersebut (Kecuali sedang Test Mode)
       if (!isTest && income === 0 && expense === 0) continue;
 
-      const fmt = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+      // Generate PDF Buffer
+      const pdfBuffer = await generatePDFBuffer(userName, targetMonthLabel, income, expense, txList);
 
       // 6. Buat Template HTML
       const html = `
@@ -126,7 +184,7 @@ export default async function handler(req, res) {
           </div>
           <div style="padding: 32px; background-color: #ffffff;">
             <p>Halo <strong>${userName}</strong>,</p>
-            <p>Berikut adalah ringkasan arus kas Anda selama bulan <strong>${targetMonthLabel}</strong>:</p>
+            <p>Berikut adalah ringkasan arus kas Anda selama bulan <strong>${targetMonthLabel}</strong>. Rincian lengkap seluruh transaksi Anda telah kami lampirkan dalam dokumen PDF pada email ini.</p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
               <tr style="border-bottom: 1px solid #e2e8f0;">
@@ -145,7 +203,7 @@ export default async function handler(req, res) {
 
             <p style="margin-top: 32px; font-size: 14px; color: #64748b; line-height: 1.5;">
               Terus pantau arus kas Anda untuk mencapai kebebasan finansial.<br/>
-              Buka aplikasi SteFin untuk melihat detail transaksi selengkapnya.
+              Buka aplikasi SteFin untuk melihat detail analitik selengkapnya.
             </p>
           </div>
           <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
@@ -161,6 +219,13 @@ export default async function handler(req, res) {
           to: userRecord.email,
           subject: `Laporan Keuangan SteFin - ${targetMonthLabel}`,
           html: html,
+          attachments: [
+            {
+              filename: `SteFin_Statement_${targetMonthLabel.replace(/\s+/g, '_')}.pdf`,
+              content: pdfBuffer,
+              contentType: 'application/pdf'
+            }
+          ]
         })
       );
     }

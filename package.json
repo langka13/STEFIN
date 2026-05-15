@@ -21,6 +21,8 @@
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "nodemailer": "^8.0.7",
+    "pdfkit": "^0.18.0",
+    "pdfkit-table": "^0.1.99",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.8.1",
