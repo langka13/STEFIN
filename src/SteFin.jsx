@@ -878,6 +878,7 @@ function OnboardingScreen({ user, accounts, step, setStep, onAddAccount, onDone 
 
 // ─── Dashboard Page ───────────────────────────────────────────────────────────
 function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, currentSavings, currentCashIn, currentCashOut, currentNetFlow, savingsRate, chartData, expensePieData, assistantMsgs, rolling, filterMonth, setFilterMonth, monthOptions }) {
+  const { t } = useLanguage();
 
   const fmtIn  = (v) => (v > 0 ? `+${formatIDR(v)}` : formatIDR(v))
   const fmtOut = (v) => (v > 0 ? `-${formatIDR(v)}` : formatIDR(v))
