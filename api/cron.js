@@ -28,7 +28,11 @@ export default async function handler(req, res) {
       // 2. Replace literal \n with actual newlines
       pk = pk.replace(/\\n/g, '\n');
       
-      // 3. Validate format
+      // 3. Auto-fix missing newlines around BEGIN and END blocks (Common copy-paste error)
+      pk = pk.replace(/([^\n])-----END PRIVATE KEY-----/g, '$1\n-----END PRIVATE KEY-----');
+      pk = pk.replace(/-----BEGIN PRIVATE KEY-----([^\n])/g, '-----BEGIN PRIVATE KEY-----\n$1');
+
+      // 4. Validate format
       if (!pk.includes('BEGIN PRIVATE KEY') || !pk.includes('END PRIVATE KEY')) {
         throw new Error("Private Key format is invalid. Make sure you copied everything from '-----BEGIN PRIVATE KEY-----' to '-----END PRIVATE KEY-----'.");
       }
