@@ -21,21 +21,21 @@ export default async function handler(req, res) {
         throw new Error("Missing Firebase credentials in Vercel Environment Variables.");
       }
 
-      // Robust Private Key Parsing
-      let pk = process.env.FIREBASE_PRIVATE_KEY;
-      // 1. Remove wrapping quotes if they accidentally copied them
-      pk = pk.replace(/^"|"$/g, '');
-      // 2. Replace literal \n with actual newlines
-      pk = pk.replace(/\\n/g, '\n');
+      // Sangat Kuat: Ambil pure base64-nya saja lalu bangun ulang format PEM-nya
+      let rawBase64 = process.env.FIREBASE_PRIVATE_KEY
+        .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+        .replace(/-----END PRIVATE KEY-----/g, '')
+        .replace(/\\n/g, '') // Hapus \n literal
+        .replace(/[\s\n\r]+/g, '') // Hapus enter dan spasi asli
+        .replace(/"/g, ''); // Hapus kutipan
       
-      // 3. Auto-fix missing newlines around BEGIN and END blocks (Common copy-paste error)
-      pk = pk.replace(/([^\n])-----END PRIVATE KEY-----/g, '$1\n-----END PRIVATE KEY-----');
-      pk = pk.replace(/-----BEGIN PRIVATE KEY-----([^\n])/g, '-----BEGIN PRIVATE KEY-----\n$1');
-
-      // 4. Validate format
-      if (!pk.includes('BEGIN PRIVATE KEY') || !pk.includes('END PRIVATE KEY')) {
-        throw new Error("Private Key format is invalid. Make sure you copied everything from '-----BEGIN PRIVATE KEY-----' to '-----END PRIVATE KEY-----'.");
+      if (!rawBase64) {
+        throw new Error("Private Key kosong atau rusak.");
       }
+
+      // Potong base64 menjadi 64 karakter per baris (Standar format PEM RFC 7468)
+      const formattedBase64 = rawBase64.match(/.{1,64}/g).join('\n');
+      const pk = `-----BEGIN PRIVATE KEY-----\n${formattedBase64}\n-----END PRIVATE KEY-----\n`;
 
       admin.initializeApp({
         credential: admin.credential.cert({
