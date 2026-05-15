@@ -71,7 +71,13 @@ const DEBT_CATEGORIES = {
 
 const TRANSFER_CATEGORIES = {
   'Internal Transfer': ['Antar Bank', 'Top-up E-Wallet', 'Tarik Tunai ATM'],
-  'Piutang': ['Pemberian Pinjaman', 'Pelunasan Piutang'],
+  'Piutang':           ['Pemberian Pinjaman', 'Pelunasan Piutang'],
+}
+
+const ACCOUNT_NAMES = {
+  Bank: ['BCA', 'BNI', 'BRI', 'Mandiri', 'CIMB Niaga', 'BSI', 'Permata', 'Danamon', 'BTN', 'Jenius', 'Lainnya'],
+  Cash: ['Dompet', 'Kas Tunai', 'Celengan', 'Lainnya'],
+  'E-Wallet': ['GoPay', 'OVO', 'DANA', 'ShopeePay', 'LinkAja', 'iSaku', 'Lainnya'],
 }
 
 const LEVELS = ['Kebutuhan', 'Kewajiban', 'Keinginan']
@@ -827,15 +833,25 @@ function OnboardingScreen({ user, accounts, step, setStep, onAddAccount, onDone 
                 </div>
 
                 {/* Add account form */}
-                <div className="rounded-2xl border border-dashed border-slate-700 bg-white dark:bg-slate-900 shadow-sm p-4">
-                  <div className="mb-3 text-xs text-slate-500 dark:text-slate-400">+ {t('add_account')}</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" placeholder={t('acc_name_placeholder')} value={newAcc.name} onChange={e => setNewAcc(p => ({ ...p, name: e.target.value }))} />
-                    <select className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" value={newAcc.type} onChange={e => setNewAcc(p => ({ ...p, type: e.target.value, icon: ICONS[e.target.value] }))}>
-                      <option value="Bank">{t('acc_type_bank')}</option><option value="Cash">{t('acc_type_cash')}</option><option value="E-Wallet">{t('acc_type_ewallet')}</option>
-                    </select>
-                  </div>
-                  <div className="mt-2 flex gap-2">
+                <div className="rounded-2xl border border-dashed border-slate-700 bg-white dark:bg-slate-900 shadow-sm p-4 space-y-2">
+                  <div className="mb-1 text-xs text-slate-500 dark:text-slate-400">+ {t('add_account')}</div>
+                  {/* Tipe Akun */}
+                  <select className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" value={newAcc.type} onChange={e => setNewAcc({ name: '', type: e.target.value, balance: newAcc.balance, icon: ICONS[e.target.value] })}>
+                    <option value="Bank">{t('acc_type_bank')}</option>
+                    <option value="Cash">{t('acc_type_cash')}</option>
+                    <option value="E-Wallet">{t('acc_type_ewallet')}</option>
+                  </select>
+                  {/* Nama Akun — cascading */}
+                  <select className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" value={newAcc.name} onChange={e => setNewAcc(p => ({ ...p, name: e.target.value }))}>
+                    <option value="">— Pilih nama akun —</option>
+                    {(ACCOUNT_NAMES[newAcc.type] || []).map(n => <option key={n} value={n} className="bg-white dark:bg-slate-900">{n}</option>)}
+                  </select>
+                  {/* Custom name jika Lainnya */}
+                  {newAcc.name === 'Lainnya' && (
+                    <input className="w-full rounded-xl border border-emerald-400 bg-white dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" placeholder="Nama akun..." onChange={e => setNewAcc(p => ({ ...p, name: e.target.value }))} />
+                  )}
+                  {/* Saldo + Tambah */}
+                  <div className="flex gap-2">
                     <input className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" type="number" placeholder={t('init_balance')} value={newAcc.balance} onChange={e => setNewAcc(p => ({ ...p, balance: e.target.value }))} />
                     <button type="button" onClick={handleAdd} className="rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-900 dark:text-slate-50 hover:bg-slate-200 dark:hover:bg-slate-700">{t('add')}</button>
                   </div>
@@ -1592,18 +1608,33 @@ function TransactionModal({ tx, accounts, onSave, onClose }) {
 function AccountModal({ account, onClose, onSave }) {
   const { t } = useLanguage();
   const isEdit = Boolean(account)
-  const [name, setName] = useState(account?.name || '')
   const [type, setType] = useState(account?.type || 'Bank')
+  const [nameChoice, setNameChoice] = useState(() => {
+    if (!account?.name) return ''
+    return ACCOUNT_NAMES[account.type || 'Bank']?.includes(account.name) ? account.name : 'Lainnya'
+  })
+  const [customName, setCustomName] = useState(() => {
+    if (!account?.name) return ''
+    return ACCOUNT_NAMES[account.type || 'Bank']?.includes(account.name) ? '' : account.name
+  })
   const [balance, setBalance] = useState(account?.balance?.toString() || '')
   const [saving, setSaving] = useState(false)
   const ICONS = { Bank: '🏦', Cash: '💵', 'E-Wallet': '💳' }
+  const nameOptions = ACCOUNT_NAMES[type] || []
+  const resolvedName = nameChoice === 'Lainnya' ? customName : nameChoice
+
+  const handleTypeChange = (newType) => {
+    setType(newType)
+    setNameChoice('')
+    setCustomName('')
+  }
 
   const handleSave = async () => {
-    if (!name || balance === '') return
+    if (!resolvedName || balance === '') return
     setSaving(true)
     const payload = {
       ...(isEdit ? { id: account.id } : {}),
-      name, type, balance: verifyNumber(balance), icon: ICONS[type]
+      name: resolvedName, type, balance: verifyNumber(balance), icon: ICONS[type]
     }
     await onSave(payload)
     setSaving(false)
@@ -1614,7 +1645,7 @@ function AccountModal({ account, onClose, onSave }) {
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 dark:bg-slate-950/60 p-4">
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }}
-        className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900  shadow-sm dark:shadow-2xl p-6 shadow-sm dark:shadow-2xl"
+        className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900  shadow-sm dark:shadow-2xl p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -1626,16 +1657,42 @@ function AccountModal({ account, onClose, onSave }) {
           </button>
         </div>
         <div className="space-y-3">
-          <input className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500 placeholder:text-slate-600 dark:text-slate-300 dark:text-zinc-600" placeholder={t('acc_name_placeholder')} value={name} onChange={e => setName(e.target.value)} />
-          <select className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" value={type} onChange={e => setType(e.target.value)}>
-            <option value="Bank">{t('acc_type_bank')}</option><option value="Cash">{t('acc_type_cash')}</option><option value="E-Wallet">{t('acc_type_ewallet')}</option>
-          </select>
-          <input type="number" className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500 placeholder:text-slate-600 dark:text-slate-300 dark:text-zinc-600" placeholder={t('init_balance')} value={balance} onChange={e => setBalance(e.target.value)} />
-          {balance && <div className="text-xs text-emerald-400">{formatIDR(verifyNumber(balance))}</div>}
+          {/* Step 1: Tipe Akun */}
+          <div>
+            <div className="mb-2 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('acc_type') || 'Tipe Akun'}</div>
+            <select className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" value={type} onChange={e => handleTypeChange(e.target.value)}>
+              <option value="Bank">{t('acc_type_bank')}</option>
+              <option value="Cash">{t('acc_type_cash')}</option>
+              <option value="E-Wallet">{t('acc_type_ewallet')}</option>
+            </select>
+          </div>
+          {/* Step 2: Nama Akun (cascading dari tipe) */}
+          <div>
+            <div className="mb-2 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('acc_name_placeholder') || 'Nama Akun'}</div>
+            <select className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" value={nameChoice} onChange={e => setNameChoice(e.target.value)}>
+              <option value="">— Pilih nama akun —</option>
+              {nameOptions.map(n => <option key={n} value={n} className="bg-white dark:bg-slate-900">{n}</option>)}
+            </select>
+          </div>
+          {/* Step 3: Custom name jika pilih Lainnya */}
+          {nameChoice === 'Lainnya' && (
+            <input
+              className="w-full rounded-2xl border border-emerald-400 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500 placeholder:text-slate-400"
+              placeholder="Masukkan nama akun..."
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+            />
+          )}
+          {/* Saldo */}
+          <div>
+            <div className="mb-2 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('init_balance')}</div>
+            <input type="number" className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500 placeholder:text-slate-600" placeholder="0" value={balance} onChange={e => setBalance(e.target.value)} />
+            {balance && <div className="mt-1 text-xs text-emerald-400">{formatIDR(verifyNumber(balance))}</div>}
+          </div>
         </div>
         <div className="mt-6 flex gap-3 justify-end pt-2">
           <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 dark:border-slate-800 px-6 py-3 text-sm text-slate-600 dark:text-slate-300 hover:border-rose-600 transition">{t('cancel')}</button>
-          <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/20 text-white dark:text-black px-6 py-3 text-sm font-outfit font-semibold text-slate-950 hover:from-emerald-300 hover:to-teal-400 disabled:opacity-60">
+          <button type="button" onClick={handleSave} disabled={saving || !resolvedName} className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/20 text-white dark:text-black px-6 py-3 text-sm font-outfit font-semibold text-slate-950 hover:from-emerald-300 hover:to-teal-400 disabled:opacity-60">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {t('save_acc')}
           </button>
