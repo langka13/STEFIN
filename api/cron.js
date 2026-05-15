@@ -20,11 +20,16 @@ export default async function handler(req, res) {
       let credential;
 
       if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        // Cara Paling Aman: Menggunakan seluruh file JSON
+        // Cara Paling Aman: Menggunakan JSON atau Base64 Encoded JSON
         try {
-          credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+          let jsonStr = process.env.FIREBASE_SERVICE_ACCOUNT;
+          // Jika string tidak berawal kurung kurawal, asumsikan itu format Base64
+          if (!jsonStr.trim().startsWith('{')) {
+            jsonStr = Buffer.from(jsonStr, 'base64').toString('utf8');
+          }
+          credential = admin.credential.cert(JSON.parse(jsonStr));
         } catch (err) {
-          throw new Error("Gagal melakukan JSON.parse pada FIREBASE_SERVICE_ACCOUNT. Pastikan Anda menyalin seluruh isi file JSON tanpa ada yang terpotong.");
+          throw new Error("Gagal membaca FIREBASE_SERVICE_ACCOUNT. Error: " + err.message);
         }
       } else {
         // Fallback ke cara lama jika user masih pakai variable terpisah
