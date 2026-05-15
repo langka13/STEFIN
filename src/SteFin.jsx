@@ -1384,6 +1384,34 @@ function SettingsPage() {
           <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">{t('offline_mode')}</span><span className="text-emerald-400">IndexedDB ✓</span></div>
         </div>
       </div>
+
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+        <div className="text-sm font-outfit font-semibold mb-3">About & Credits</div>
+        <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+          <p>
+            <strong className="text-slate-900 dark:text-slate-50">SteFin (Smart Personal Finance)</strong><br />
+            Versi 1.2.0 &copy; {new Date().getFullYear()}
+          </p>
+          <p>
+            Dikembangkan dan dirancang oleh <strong className="text-emerald-500">Langka13</strong>.<br />
+            Aplikasi ini dibuat untuk membantu mengelola arus kas pribadi secara cerdas, terstruktur, dan real-time.
+          </p>
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="mb-1 text-xs uppercase tracking-widest text-slate-400">Tech Stack</div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800">React</span>
+              <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800">Vite</span>
+              <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800">Tailwind CSS v4</span>
+              <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800">Firebase</span>
+              <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800">Framer Motion</span>
+              <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800">Recharts</span>
+            </div>
+          </div>
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span className="mr-2">✉️</span> <a href="mailto:contact@langka13.com" className="text-emerald-500 hover:underline">contact@langka13.com</a>
+          </div>
+        </div>
+      </div>
     </section>
   )
 }
