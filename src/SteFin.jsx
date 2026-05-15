@@ -1275,9 +1275,9 @@ function AccountsPage({ accounts, onAdd, onUpdate, onDelete, onAdjust }) {
 function ProfilePage({ user, accounts, transactions, netWorth }) {
   const { t } = useLanguage();
   const totalInitial = accounts.reduce((s,a)=>s+(a.balance||0),0)
-  const totalIncome  = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0)
-  const totalExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0)
-  const activeMonths = new Set(transactions.map(t=>getMonthKey(t.date))).size
+  const totalIncome  = transactions.filter(tx=>tx.type==='income').reduce((s,tx)=>s+tx.amount,0)
+  const totalExpense = transactions.filter(tx=>tx.type==='expense').reduce((s,tx)=>s+tx.amount,0)
+  const activeMonths = new Set(transactions.map(tx=>getMonthKey(tx.date))).size
 
   return (
     <section className="space-y-6 max-w-2xl">
