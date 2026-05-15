@@ -17,33 +17,39 @@ export default async function handler(req, res) {
 
   try {
     if (!admin.apps.length) {
-      if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-        throw new Error("Missing Firebase credentials in Vercel Environment Variables.");
-      }
+      let credential;
 
-      // Sangat Kuat: Ambil pure base64-nya saja lalu bangun ulang format PEM-nya
-      let rawBase64 = process.env.FIREBASE_PRIVATE_KEY
-        .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-        .replace(/-----END PRIVATE KEY-----/g, '')
-        .replace(/\\n/g, '') // Hapus \n literal
-        .replace(/[\s\n\r]+/g, '') // Hapus enter dan spasi asli
-        .replace(/"/g, ''); // Hapus kutipan
-      
-      if (!rawBase64) {
-        throw new Error("Private Key kosong atau rusak.");
-      }
+      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        // Cara Paling Aman: Menggunakan seluruh file JSON
+        try {
+          credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
+        } catch (err) {
+          throw new Error("Gagal melakukan JSON.parse pada FIREBASE_SERVICE_ACCOUNT. Pastikan Anda menyalin seluruh isi file JSON tanpa ada yang terpotong.");
+        }
+      } else {
+        // Fallback ke cara lama jika user masih pakai variable terpisah
+        if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+          throw new Error("Missing Firebase credentials in Vercel Environment Variables. Please use FIREBASE_SERVICE_ACCOUNT.");
+        }
 
-      // Potong base64 menjadi 64 karakter per baris (Standar format PEM RFC 7468)
-      const formattedBase64 = rawBase64.match(/.{1,64}/g).join('\n');
-      const pk = `-----BEGIN PRIVATE KEY-----\n${formattedBase64}\n-----END PRIVATE KEY-----\n`;
+        let rawBase64 = process.env.FIREBASE_PRIVATE_KEY
+          .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+          .replace(/-----END PRIVATE KEY-----/g, '')
+          .replace(/\\n/g, '')
+          .replace(/[\s\n\r]+/g, '')
+          .replace(/"/g, '');
+        
+        const formattedBase64 = rawBase64.match(/.{1,64}/g)?.join('\n') || '';
+        const pk = `-----BEGIN PRIVATE KEY-----\n${formattedBase64}\n-----END PRIVATE KEY-----\n`;
 
-      admin.initializeApp({
-        credential: admin.credential.cert({
+        credential = admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
           privateKey: pk,
-        }),
-      });
+        });
+      }
+
+      admin.initializeApp({ credential });
     }
     if (!db) db = admin.firestore();
 
