@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fungsi bantuan: Pastikan user sudah login
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Fungsi bantuan: Pastikan ID sesuai dengan user yang login
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Aturan untuk koleksi users
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      
+      // Aturan untuk semua subkoleksi (accounts, transactions, dll) di bawah user
+      match /{document=**} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+      }
+    }
+  }
+}

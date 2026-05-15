@@ -14,7 +14,8 @@ import {
   Menu, X, PlusCircle, Edit3, Trash2, User, Wallet,
   PieChart as IconPie, Activity, Settings, LayoutDashboard,
   Clock3, CreditCard, LogOut, Globe, CheckCircle,
-  AlertTriangle, Sparkles, Loader2, Sun, Moon
+  AlertTriangle, Sparkles, Loader2, Sun, Moon,
+  Eye, EyeOff
 } from 'lucide-react'
 
 import { useAuth } from './hooks/useAuth'
@@ -161,7 +162,7 @@ const getMonthOptions = (count = 12) => {
 
 // ─── Root component ───────────────────────────────────────────────────────────
 export default function SteFin() {
-  const { lang, t } = useLanguage()
+  const { lang, t, privacyMode, togglePrivacyMode } = useLanguage()
 
   // Auth
   const { user, authLoading, authError, setAuthError, registerWithEmail, loginWithEmail, loginWithGoogle, logout } = useAuth()
@@ -629,7 +630,7 @@ export default function SteFin() {
 
 // ─── Splash / Loading ─────────────────────────────────────────────────────────
 function SplashScreen({ label }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   return (
     <div className="grid min-h-screen place-items-center bg-white dark:bg-slate-900">
       <div className="flex flex-col items-center gap-6">
@@ -646,7 +647,7 @@ function SplashScreen({ label }) {
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen({ authError, setAuthError, onEmail, onGoogle }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -764,7 +765,7 @@ function LoginScreen({ authError, setAuthError, onEmail, onGoogle }) {
 
 // ─── Onboarding Screen ────────────────────────────────────────────────────────
 function OnboardingScreen({ user, accounts, step, setStep, onAddAccount, onDone }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   const [newAcc, setNewAcc] = useState({ name: '', type: 'Bank', balance: '', icon: '🏦' })
   const [saving, setSaving] = useState(false)
   const ICONS = { Bank: '🏦', Cash: '💵', 'E-Wallet': '💳' }
@@ -827,7 +828,7 @@ function OnboardingScreen({ user, accounts, step, setStep, onAddAccount, onDone 
                           <div className="text-xs text-slate-500 dark:text-slate-400">{acc.type}</div>
                         </div>
                       </div>
-                      <div className="text-sm font-outfit font-semibold text-emerald-400">{formatIDR(acc.balance)}</div>
+                      <div className="text-sm font-outfit font-semibold text-emerald-400">{(privacyMode ? 'Rp •••••••' : formatIDR(acc.balance))}</div>
                     </div>
                   ))}
                 </div>
@@ -895,10 +896,10 @@ function OnboardingScreen({ user, accounts, step, setStep, onAddAccount, onDone 
 
 // ─── Dashboard Page ───────────────────────────────────────────────────────────
 function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, currentSavings, currentCashIn, currentCashOut, currentNetFlow, savingsRate, chartData, expensePieData, assistantMsgs, rolling, filterMonth, setFilterMonth, monthOptions }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
 
-  const fmtIn = (v) => (v > 0 ? `+${formatIDR(v)}` : formatIDR(v))
-  const fmtOut = (v) => (v > 0 ? `-${formatIDR(v)}` : formatIDR(v))
+  const fmtIn = (v) => (v > 0 ? `+${(privacyMode ? 'Rp •••••••' : formatIDR(v))}` : (privacyMode ? 'Rp •••••••' : formatIDR(v)))
+  const fmtOut = (v) => (v > 0 ? `-${(privacyMode ? 'Rp •••••••' : formatIDR(v))}` : (privacyMode ? 'Rp •••••••' : formatIDR(v)))
 
   return (
     <section className="space-y-6">
@@ -906,11 +907,16 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('net_worth')}</div>
-            <div className={`mt-2 text-4xl font-outfit font-semibold ${netWorth >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-              {formatIDR(netWorth)}
+            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              {t('net_worth')}
+              <button type="button" onClick={togglePrivacyMode} className="text-slate-400 hover:text-emerald-500 transition-colors">
+                {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
-            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('cash_balance')}: {formatIDR(totalBalance)}</div>
+            <div className={`mt-2 text-4xl font-outfit font-semibold ${netWorth >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+              {(privacyMode ? 'Rp •••••••' : formatIDR(netWorth))}
+            </div>
+            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('cash_balance')}: {(privacyMode ? 'Rp •••••••' : formatIDR(totalBalance))}</div>
           </div>
           <select
             className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-slate-50 outline-none transition focus:border-emerald-500"
@@ -926,16 +932,16 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800 p-4">
               <div className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('tx_income')}</div>
-              <div className="mt-2 text-2xl font-outfit font-semibold text-emerald-500 dark:text-emerald-400">{formatIDR(currentStats.income)}</div>
+              <div className="mt-2 text-2xl font-outfit font-semibold text-emerald-500 dark:text-emerald-400">{(privacyMode ? 'Rp •••••••' : formatIDR(currentStats.income))}</div>
             </div>
             <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800 p-4">
               <div className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('tx_expense')}</div>
-              <div className="mt-2 text-2xl font-outfit font-semibold text-rose-500 dark:text-rose-400">{formatIDR(currentStats.expense)}</div>
+              <div className="mt-2 text-2xl font-outfit font-semibold text-rose-500 dark:text-rose-400">{(privacyMode ? 'Rp •••••••' : formatIDR(currentStats.expense))}</div>
             </div>
             <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800 p-4">
               <div className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('savings')}</div>
               <div className={`mt-2 text-2xl font-outfit font-semibold ${currentSavings >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                {formatIDR(currentSavings)}
+                {(privacyMode ? 'Rp •••••••' : formatIDR(currentSavings))}
               </div>
               <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">{savingsRate}% {t('from_income')}</div>
             </div>
@@ -1000,7 +1006,7 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
             <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t('debit_minus_credit')}</div>
           </div>
           <div className={`text-2xl font-outfit font-bold ${currentNetFlow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-            {currentNetFlow >= 0 ? '+' : ''}{formatIDR(currentNetFlow)}
+            {currentNetFlow >= 0 ? '+' : ''}{(privacyMode ? 'Rp •••••••' : formatIDR(currentNetFlow))}
           </div>
         </div>
       </div>
@@ -1034,7 +1040,7 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
                 <CartesianGrid stroke={theme === 'dark' ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"} strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" tick={{ fill: '#a1a1aa', fontSize: 12, fontFamily: 'Inter' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#a1a1aa', fontSize: 11, fontFamily: 'Inter' }} axisLine={false} tickLine={false} tickFormatter={v => `Rp${(v / 1e6).toFixed(1)}M`} />
-                <Tooltip contentStyle={{ background: theme === 'dark' ? 'rgba(10,10,10,0.8)' : 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', borderRadius: 16, fontSize: 12, fontFamily: 'Inter', color: theme === 'dark' ? '#fff' : '#000' }} itemStyle={{ color: theme === 'dark' ? '#fff' : '#000' }} formatter={v => formatIDR(v)} />
+                <Tooltip contentStyle={{ background: theme === 'dark' ? 'rgba(10,10,10,0.8)' : 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)', borderRadius: 16, fontSize: 12, fontFamily: 'Inter', color: theme === 'dark' ? '#fff' : '#000' }} itemStyle={{ color: theme === 'dark' ? '#fff' : '#000' }} formatter={v => (privacyMode ? 'Rp •••••••' : formatIDR(v))} />
                 <Area type="monotone" dataKey="income" stroke="#34d399" fill="url(#incG)" strokeWidth={3} name="Pendapatan" />
                 <Area type="monotone" dataKey="expense" stroke="#fb7185" fill="url(#expG)" strokeWidth={3} name="Pengeluaran" />
               </AreaChart>
@@ -1054,7 +1060,7 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
                     <Pie data={expensePieData} dataKey="value" innerRadius={45} outerRadius={65} paddingAngle={4}>
                       {expensePieData.map((d, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ background: theme === 'dark' ? '#0f172a' : '#fff', border: theme === 'dark' ? '1px solid #1e293b' : '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, color: theme === 'dark' ? '#fff' : '#000' }} formatter={v => formatIDR(v)} />
+                    <Tooltip contentStyle={{ background: theme === 'dark' ? '#0f172a' : '#fff', border: theme === 'dark' ? '1px solid #1e293b' : '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, color: theme === 'dark' ? '#fff' : '#000' }} formatter={v => (privacyMode ? 'Rp •••••••' : formatIDR(v))} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -1065,7 +1071,7 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
                       <div className="h-2 w-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
                       <span className="text-slate-500 dark:text-slate-400">{d.name}</span>
                     </div>
-                    <span className="font-medium text-slate-200">{formatIDR(d.value)}</span>
+                    <span className="font-medium text-slate-200">{(privacyMode ? 'Rp •••••••' : formatIDR(d.value))}</span>
                   </div>
                 ))}
               </div>
@@ -1087,12 +1093,12 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
                 <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
                   <span>{monthLabel(r.month)}</span>
                   <span className={`font-outfit font-semibold ${r.netFlow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {r.netFlow >= 0 ? '+' : ''}{formatIDR(r.netFlow)}
+                    {r.netFlow >= 0 ? '+' : ''}{(privacyMode ? 'Rp •••••••' : formatIDR(r.netFlow))}
                   </span>
                 </div>
                 <div className="mt-1 flex justify-between text-xs">
                   <span className="text-slate-500 dark:text-slate-400">Akumulasi</span>
-                  <span className={`font-outfit font-semibold ${r.running >= 0 ? 'text-slate-700 dark:text-slate-200' : 'text-rose-400'}`}>{formatIDR(r.running)}</span>
+                  <span className={`font-outfit font-semibold ${r.running >= 0 ? 'text-slate-700 dark:text-slate-200' : 'text-rose-400'}`}>{(privacyMode ? 'Rp •••••••' : formatIDR(r.running))}</span>
                 </div>
               </div>
             ))}
@@ -1113,7 +1119,7 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
                     <div className="text-xs text-slate-500 dark:text-slate-400">{acc.type}</div>
                   </div>
                 </div>
-                <div className={`text-xl font-outfit font-semibold ${acc.currentBalance >= 0 ? 'text-emerald-400' : 'text-rose-400 font-outfit font-semibold'}`}>{formatIDR(acc.currentBalance)}</div>
+                <div className={`text-xl font-outfit font-semibold ${acc.currentBalance >= 0 ? 'text-emerald-400' : 'text-rose-400 font-outfit font-semibold'}`}>{(privacyMode ? 'Rp •••••••' : formatIDR(acc.currentBalance))}</div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white dark:bg-slate-900/50 backdrop-blur-md">
                   <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, Math.max(8, (acc.currentBalance / Math.max(1, totalBalance)) * 100))}%` }} />
                 </div>
@@ -1155,7 +1161,7 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
 
 // ─── History Page ─────────────────────────────────────────────────────────────
 function HistoryPage({ filteredTx, filterMonth, setFilterMonth, txFilter, setTxFilter, monthOptions, accounts, onEdit, onDelete }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   const accMap = useMemo(() => Object.fromEntries(accounts.map(a => [a.id, a])), [accounts])
   return (
     <section className="space-y-6">
@@ -1215,7 +1221,7 @@ function HistoryPage({ filteredTx, filterMonth, setFilterMonth, txFilter, setTxF
                           ? 'text-slate-400'
                           : 'text-rose-400'
                       }`}>
-                      {tx.type === 'income' || tx.category === 'Settlement' || (tx.type === 'debt' && tx.category !== 'Pelunasan' && tx.isInitial === false) ? '+' : '-'}{formatIDR(tx.amount)}
+                      {tx.type === 'income' || tx.category === 'Settlement' || (tx.type === 'debt' && tx.category !== 'Pelunasan' && tx.isInitial === false) ? '+' : '-'}{(privacyMode ? 'Rp •••••••' : formatIDR(tx.amount))}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex gap-2">
@@ -1240,7 +1246,7 @@ function HistoryPage({ filteredTx, filterMonth, setFilterMonth, txFilter, setTxF
 
 // ─── Accounts Page ────────────────────────────────────────────────────────────
 function AccountsPage({ accounts, onAdd, onUpdate, onDelete, onAdjust }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-6">
@@ -1268,7 +1274,7 @@ function AccountsPage({ accounts, onAdd, onUpdate, onDelete, onAdjust }) {
             <div>
               <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t('real_balance')}</div>
               <div className={`text-2xl font-outfit font-semibold ${acc.currentBalance >= 0 ? 'text-emerald-400' : 'text-rose-400 font-outfit font-semibold'}`}>
-                {formatIDR(acc.currentBalance)}
+                {(privacyMode ? 'Rp •••••••' : formatIDR(acc.currentBalance))}
               </div>
             </div>
             <div className="mt-4 flex gap-2">
@@ -1288,7 +1294,7 @@ function AccountsPage({ accounts, onAdd, onUpdate, onDelete, onAdjust }) {
 
 // ─── Profile Page ─────────────────────────────────────────────────────────────
 function ProfilePage({ user, accounts, transactions, netWorth }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   const totalInitial = accounts.reduce((s, a) => s + (a.balance || 0), 0)
   const totalIncome = transactions.filter(tx => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0)
   const totalExpense = transactions.filter(tx => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0)
@@ -1318,7 +1324,7 @@ function ProfilePage({ user, accounts, transactions, netWorth }) {
           <div key={item.label} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
             <div className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{item.label}</div>
             <div className={`mt-2 text-2xl font-outfit font-semibold ${item.color === 'emerald' ? 'text-emerald-400' : item.color === 'rose' ? 'text-rose-400 font-outfit font-semibold' : 'text-slate-900 dark:text-slate-50'}`}>
-              {formatIDR(item.value)}
+              {(privacyMode ? 'Rp •••••••' : formatIDR(item.value))}
             </div>
           </div>
         ))}
@@ -1343,7 +1349,7 @@ function ProfilePage({ user, accounts, transactions, netWorth }) {
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
 function SettingsPage() {
-  const { lang, changeLang, t } = useLanguage();
+  const { lang, changeLang, t, privacyMode, togglePrivacyMode } = useLanguage();
 
   return (
     <section className="max-w-xl space-y-4">
@@ -1419,7 +1425,7 @@ function SettingsPage() {
 
 // ─── Transaction Modal ────────────────────────────────────────────────────────
 function TransactionModal({ tx, accounts, onSave, onClose }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   const isEdit = Boolean(tx)
   const [type, setType] = useState(tx?.type || 'expense')
   const [level1, setLevel1] = useState(tx?.level1 || 'Kebutuhan')
@@ -1547,8 +1553,8 @@ function TransactionModal({ tx, accounts, onSave, onClose }) {
                   {isInitial
                     ? t('account_not_changed', { name: accounts.find(a => a.id === accountId)?.name || t('account').toLowerCase() })
                     : type === 'debt'
-                      ? t('account_increased', { name: accounts.find(a => a.id === accountId)?.name || t('account').toLowerCase(), amount: formatIDR(verifyNumber(amount)) })
-                      : t('account_decreased', { name: accounts.find(a => a.id === accountId)?.name || t('account').toLowerCase(), amount: formatIDR(verifyNumber(amount)) })
+                      ? t('account_increased', { name: accounts.find(a => a.id === accountId)?.name || t('account').toLowerCase(), amount: (privacyMode ? 'Rp •••••••' : formatIDR(verifyNumber(amount))) })
+                      : t('account_decreased', { name: accounts.find(a => a.id === accountId)?.name || t('account').toLowerCase(), amount: (privacyMode ? 'Rp •••••••' : formatIDR(verifyNumber(amount))) })
                   }
                 </div>
               )}
@@ -1610,7 +1616,7 @@ function TransactionModal({ tx, accounts, onSave, onClose }) {
           <div>
             <div className="mb-2 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('amount_rp')}</div>
             <input type="number" min="0" placeholder="0" className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500" value={amount} onChange={e => setAmount(e.target.value)} />
-            {amount && <div className="mt-1 text-xs text-emerald-400">{formatIDR(verifyNumber(amount))}</div>}
+            {amount && <div className="mt-1 text-xs text-emerald-400">{(privacyMode ? 'Rp •••••••' : formatIDR(verifyNumber(amount)))}</div>}
           </div>
 
           {/* Note */}
@@ -1634,7 +1640,7 @@ function TransactionModal({ tx, accounts, onSave, onClose }) {
 
 // ─── Account Modal ────────────────────────────────────────────────────────────
 function AccountModal({ account, onClose, onSave }) {
-  const { t } = useLanguage();
+  const { t, privacyMode, togglePrivacyMode } = useLanguage();
   const isEdit = Boolean(account)
   const [type, setType] = useState(account?.type || 'Bank')
   const [nameChoice, setNameChoice] = useState(() => {
@@ -1715,7 +1721,7 @@ function AccountModal({ account, onClose, onSave }) {
           <div>
             <div className="mb-2 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('init_balance')}</div>
             <input type="number" className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 backdrop-blur-md px-4 py-3 text-slate-900 dark:text-slate-50 outline-none focus:border-emerald-500 placeholder:text-slate-600" placeholder="0" value={balance} onChange={e => setBalance(e.target.value)} />
-            {balance && <div className="mt-1 text-xs text-emerald-400">{formatIDR(verifyNumber(balance))}</div>}
+            {balance && <div className="mt-1 text-xs text-emerald-400">{(privacyMode ? 'Rp •••••••' : formatIDR(verifyNumber(balance)))}</div>}
           </div>
         </div>
         <div className="mt-6 flex gap-3 justify-end pt-2">

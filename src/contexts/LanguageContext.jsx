@@ -305,6 +305,18 @@ export function LanguageProvider({ children }) {
     }
   }, []);
 
+  const [privacyMode, setPrivacyMode] = useState(() => {
+    return localStorage.getItem('stefin_privacy') === 'true';
+  });
+
+  const togglePrivacyMode = () => {
+    setPrivacyMode(prev => {
+      const next = !prev;
+      localStorage.setItem('stefin_privacy', next);
+      return next;
+    });
+  };
+
   const changeLang = (newLang) => {
     setLang(newLang);
     localStorage.setItem('stefin_lang', newLang);
@@ -321,7 +333,7 @@ export function LanguageProvider({ children }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ lang, changeLang, t }}>
+    <LanguageContext.Provider value={{ lang, changeLang, t, privacyMode, togglePrivacyMode }}>
       {children}
     </LanguageContext.Provider>
   );
