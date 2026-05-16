@@ -183,38 +183,7 @@ export default function SteFin() {
   // Onboarding storage
   const { hasOnboarded, completeOnboarding } = useFirebaseStorage(saveProfile, profile)
 
-  // Fetch AI Suggestions for Dashboard
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (!user || loadingSuggestions) return;
-      setLoadingSuggestions(true);
-      try {
-        const res = await askAI({
-          prompt: "Berikan saran otomatis singkat untuk dashboard saya.",
-          context: {
-            totalBalance,
-            netWorth,
-            currentStats,
-            savingsRate
-          },
-          type: 'suggestions'
-        });
-        if (res) {
-          const parsed = JSON.parse(res);
-          setAiSuggestions(parsed.map(text => ({ text, type: 'info' })));
-        }
-      } catch (e) {
-        console.error("AI Suggestion Error:", e);
-        setAiSuggestions([{ text: "Gagal memuat saran AI. Coba segarkan halaman.", type: 'warning' }]);
-      } finally {
-        setLoadingSuggestions(false);
-      }
-    };
 
-    if (page === 'dashboard') {
-      fetchSuggestions();
-    }
-  }, [filterMonth, totalBalance, page]);
 
   // UI state
   const [page, setPage] = useState('dashboard')
@@ -334,6 +303,40 @@ export default function SteFin() {
   }, [transactions, filterMonth])
 
 
+
+
+  // Fetch AI Suggestions for Dashboard
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!user || loadingSuggestions) return;
+      setLoadingSuggestions(true);
+      try {
+        const res = await askAI({
+          prompt: "Berikan saran otomatis singkat untuk dashboard saya.",
+          context: {
+            totalBalance,
+            netWorth,
+            currentStats,
+            savingsRate
+          },
+          type: 'suggestions'
+        });
+        if (res) {
+          const parsed = JSON.parse(res);
+          setAiSuggestions(parsed.map(text => ({ text, type: 'info' })));
+        }
+      } catch (e) {
+        console.error("AI Suggestion Error:", e);
+        setAiSuggestions([{ text: "Gagal memuat saran AI. Coba segarkan halaman.", type: 'warning' }]);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    };
+
+    if (page === 'dashboard') {
+      fetchSuggestions();
+    }
+  }, [filterMonth, totalBalance, page]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleOnboardDone = async (userName) => {
