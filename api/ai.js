@@ -40,8 +40,8 @@ export default async function handler(req, res) {
       4. Selalu referensikan data angka dari konteks yang diberikan.
     `;
 
-    // Menggunakan Fetch API langsung untuk kontrol penuh
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    // Menggunakan gemini-2.0-flash yang terkonfirmasi ada di daftar model Anda
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     
     const payload = {
       contents: [
