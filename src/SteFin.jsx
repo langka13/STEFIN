@@ -1837,6 +1837,4 @@ function AccountModal({ account, onClose, onSave }) {
     </div>
   )
 }
-  )
-}
 
