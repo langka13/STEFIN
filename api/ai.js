@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -14,8 +12,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
     let systemInstruction = `
       Anda adalah SteFin AI, seorang konsultan keuangan pribadi profesional yang cerdas, ramah, dan solutif.
       Tugas Anda adalah membantu pengguna mengelola keuangan mereka berdasarkan data transaksi dan saldo mereka.
@@ -44,16 +40,39 @@ export default async function handler(req, res) {
       4. Selalu referensikan data angka dari konteks yang diberikan.
     `;
 
-    // Memaksa penggunaan versi v1 yang lebih stabil
-    const model = genAI.getGenerativeModel(
-      { model: 'gemini-1.5-flash' },
-      { apiVersion: 'v1' }
-    );
+    // Menggunakan Fetch API langsung untuk kontrol penuh
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: systemInstruction + "\n\n" + fullPrompt }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 2048,
+      }
+    };
 
-    const result = await model.generateContent([systemInstruction, fullPrompt]);
-    const response = await result.response;
-    const text = response.text();
+    console.log("[AI] Fetching via direct REST API...");
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
 
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("[AI] REST Error:", data);
+      throw new Error(data.error?.message || "Gagal menghubungi Gemini API");
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, saya tidak bisa memberikan jawaban saat ini.";
     return res.status(200).json({ text });
   } catch (error) {
     console.error('AI Error:', error);
