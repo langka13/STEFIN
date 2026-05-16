@@ -44,21 +44,15 @@ export default async function handler(req, res) {
       4. Selalu referensikan data angka dari konteks yang diberikan.
     `;
 
-    let text;
-    try {
-      // Coba model 1.5 flash (lebih pintar & murah)
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const result = await model.generateContent([systemInstruction, fullPrompt]);
-      const response = await result.response;
-      text = response.text();
-    } catch (flashError) {
-      console.warn('Flash model failed, falling back to gemini-pro:', flashError.message);
-      // Fallback ke gemini-pro (lebih stabil di beberapa region)
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-      const result = await model.generateContent([systemInstruction, fullPrompt]);
-      const response = await result.response;
-      text = response.text();
-    }
+    // Memaksa penggunaan versi v1 yang lebih stabil
+    const model = genAI.getGenerativeModel(
+      { model: 'gemini-1.5-flash' },
+      { apiVersion: 'v1' }
+    );
+
+    const result = await model.generateContent([systemInstruction, fullPrompt]);
+    const response = await result.response;
+    const text = response.text();
 
     return res.status(200).json({ text });
   } catch (error) {
