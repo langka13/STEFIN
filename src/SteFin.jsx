@@ -167,6 +167,9 @@ export default function SteFin() {
 
   // Auth
   const { user, authLoading, authError, setAuthError, registerWithEmail, loginWithEmail, loginWithGoogle, logout } = useAuth()
+  const { askAI } = useAI();
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   // Firestore
   const {
@@ -178,6 +181,39 @@ export default function SteFin() {
 
   // Onboarding storage
   const { hasOnboarded, completeOnboarding } = useFirebaseStorage(saveProfile, profile)
+
+  // Fetch AI Suggestions for Dashboard
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!user || loadingSuggestions) return;
+      setLoadingSuggestions(true);
+      try {
+        const res = await askAI({
+          prompt: "Berikan saran otomatis singkat untuk dashboard saya.",
+          context: {
+            totalBalance,
+            netWorth,
+            currentStats,
+            savingsRate
+          },
+          type: 'suggestions'
+        });
+        if (res) {
+          const parsed = JSON.parse(res);
+          setAiSuggestions(parsed.map(text => ({ text, type: 'info' })));
+        }
+      } catch (e) {
+        console.error("AI Suggestion Error:", e);
+        setAiSuggestions([{ text: "Gagal memuat saran AI. Coba segarkan halaman.", type: 'warning' }]);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    };
+
+    if (page === 'dashboard') {
+      fetchSuggestions();
+    }
+  }, [filterMonth, totalBalance, page]);
 
   // UI state
   const [page, setPage] = useState('dashboard')
@@ -531,7 +567,8 @@ export default function SteFin() {
             savingsRate={savingsRate}
             chartData={chartData}
             expensePieData={expensePieData}
-            assistantMsgs={assistantMsgs}
+            assistantMsgs={aiSuggestions}
+            loadingSuggestions={loadingSuggestions}
             rolling={rolling}
             filterMonth={filterMonth}
             setFilterMonth={setFilterMonth}
@@ -904,7 +941,7 @@ function OnboardingScreen({ user, accounts, step, setStep, onAddAccount, onDone 
 }
 
 // ─── Dashboard Page ───────────────────────────────────────────────────────────
-function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, currentSavings, currentCashIn, currentCashOut, currentNetFlow, savingsRate, chartData, expensePieData, assistantMsgs, rolling, filterMonth, setFilterMonth, monthOptions }) {
+function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, currentSavings, currentCashIn, currentCashOut, currentNetFlow, savingsRate, chartData, expensePieData, assistantMsgs, loadingSuggestions, rolling, filterMonth, setFilterMonth, monthOptions }) {
   const { t, privacyMode, togglePrivacyMode } = useLanguage();
 
   const fmtIn = (v) => (v > 0 ? `+${(privacyMode ? 'Rp •••••••' : formatIDR(v))}` : (privacyMode ? 'Rp •••••••' : formatIDR(v)))
@@ -1161,7 +1198,7 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
               }`}>
               Rasio Tabungan {savingsRate}%
             </span>
-            <Sparkles className="h-5 w-5 text-emerald-400" />
+            {loadingSuggestions ? <Loader2 className="h-5 w-5 animate-spin text-emerald-500" /> : <Sparkles className="h-5 w-5 text-emerald-400" />}
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1171,6 +1208,9 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
                   'border-emerald-100 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
               }`}>{m.text}</div>
           ))}
+          {assistantMsgs.length === 0 && !loadingSuggestions && (
+            <div className="col-span-full py-4 text-center text-slate-500 text-xs italic">Belum ada saran untuk data ini.</div>
+          )}
         </div>
       </div>
     </section>
