@@ -73,6 +73,8 @@ export default function AIAssistant({ contextData }) {
 
     if (aiResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+    } else {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Gagal mendapatkan analisis. Pastikan GEMINI_API_KEY sudah benar dan Anda sudah melakukan Re-deploy di Vercel. 🛠️' }]);
     }
   };
 

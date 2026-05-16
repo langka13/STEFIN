@@ -6,9 +6,11 @@ export default async function handler(req, res) {
   }
 
   const { prompt, context, type } = req.body;
+  console.log(`[AI] Processing ${type} request...`);
 
   if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured' });
+    console.error('[AI] Error: GEMINI_API_KEY is missing');
+    return res.status(500).json({ error: 'GEMINI_API_KEY belum terpasang di Vercel. Pastikan sudah tambah Env Variable dan melakukan RE-DEPLOY.' });
   }
 
   try {

@@ -8,6 +8,9 @@ export function useAI() {
     setLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
     try {
       const response = await fetch('/api/ai', {
         method: 'POST',
@@ -15,7 +18,9 @@ export function useAI() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ prompt, context, type }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errData = await response.json();
