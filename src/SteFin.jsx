@@ -23,6 +23,7 @@ import { useFirebase } from './hooks/useFirebase'
 import { useFirebaseStorage } from './hooks/useFirebaseStorage'
 import { useLanguage } from './contexts/LanguageContext.jsx'
 import AssetsPage from './AssetsPage'
+import AIAssistant from './AIAssistant'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TAXONOMY = {
@@ -624,6 +625,14 @@ export default function SteFin() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AIAssistant contextData={{
+        totalBalance,
+        netWorth,
+        accounts: accountBalances.map(a => ({ name: a.name, balance: a.currentBalance, type: a.type })),
+        recentTransactions: filteredTx.slice(0, 20).map(t => ({ date: t.date, category: t.level1, amount: t.amount, type: t.type, note: t.note })),
+        monthlyStats: Object.entries(monthlyStats).map(([k, v]) => ({ month: k, income: v.income, expense: v.expense }))
+      }} />
     </div>
   )
 }
@@ -918,12 +927,21 @@ function DashboardPage({ theme, accounts, totalBalance, netWorth, currentStats, 
             </div>
             <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('cash_balance')}: {(privacyMode ? 'Rp •••••••' : formatIDR(totalBalance))}</div>
           </div>
-          <select
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-slate-50 outline-none transition focus:border-emerald-500"
-            value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-          >
-            {monthOptions.map(m => <option key={m.key} value={m.key} className="bg-white dark:bg-slate-900">{m.label}</option>)}
-          </select>
+          <div className="flex gap-2">
+            <select
+              className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-slate-50 outline-none transition focus:border-emerald-500"
+              value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
+            >
+              {monthOptions.map(m => <option key={m.key} value={m.key} className="bg-white dark:bg-slate-900">{m.label}</option>)}
+            </select>
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('stefin_ai_analyze'))}
+              className="flex items-center gap-2 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 text-sm font-outfit font-bold hover:opacity-90 transition"
+            >
+              <Sparkles className="h-4 w-4 text-emerald-400" />
+              <span className="hidden sm:inline">Analisis AI</span>
+            </button>
+          </div>
         </div>
 
         {/* ── Laporan Operasional ── */}
