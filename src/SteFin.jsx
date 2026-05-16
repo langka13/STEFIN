@@ -377,6 +377,34 @@ export default function SteFin() {
   const handleDeleteAccount = async (id) => {
     await deleteAccount(id)
     showToast('Akun dihapus.')
+    setModal(null)
+  }
+
+  const handleExportReport = async () => {
+    if (!user) return;
+    showToast('Sedang menyiapkan laporan & analisis AI...');
+    try {
+      const label = monthLabel(filterMonth);
+      const res = await fetch('/api/export-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          userName: user.name || 'Pengguna SteFin',
+          targetMonth: filterMonth,
+          targetMonthLabel: label
+        })
+      });
+      if (res.ok) {
+        showToast('Laporan & Analisis AI telah dikirim ke email Anda! 📧');
+      } else {
+        throw new Error('Gagal mengirim email');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Gagal mengirim laporan. Pastikan koneksi aman.');
+    }
   }
 
   const handleLogout = async () => {
@@ -620,7 +648,7 @@ export default function SteFin() {
         {page === 'profile' && (
           <ProfilePage user={user} accounts={accountBalances} transactions={transactions} netWorth={netWorth} />
         )}
-        {page === 'settings' && <SettingsPage />}
+        {page === 'settings' && <SettingsPage onExportReport={handleExportReport} />}
       </main>
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
@@ -1410,7 +1438,7 @@ function ProfilePage({ user, accounts, transactions, netWorth }) {
 }
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
-function SettingsPage() {
+function SettingsPage({ onExportReport }) {
   const { lang, changeLang, t, privacyMode, togglePrivacyMode } = useLanguage();
 
   return (
@@ -1441,6 +1469,18 @@ function SettingsPage() {
             {t('lang_en')}
           </button>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+        <div className="text-sm font-outfit font-semibold mb-2">Laporan & Analisis AI</div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Kirimkan laporan bulanan lengkap beserta analisis cerdas AI langsung ke email Anda.</p>
+        <button
+          onClick={onExportReport}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:opacity-90"
+        >
+          <Sparkles className="h-4 w-4" />
+          Kirim Laporan ke Email
+        </button>
       </div>
 
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
@@ -1797,3 +1837,6 @@ function AccountModal({ account, onClose, onSave }) {
     </div>
   )
 }
+  )
+}
+

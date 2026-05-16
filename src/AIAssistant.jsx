@@ -6,6 +6,7 @@ import { useAI } from './hooks/useAI';
 export default function AIAssistant({ contextData }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' or 'advisor'
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem('stefin_ai_messages');
     return saved ? JSON.parse(saved) : [
@@ -74,8 +75,22 @@ export default function AIAssistant({ contextData }) {
     if (aiResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     } else {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Gagal mendapatkan analisis. Pastikan GEMINI_API_KEY sudah benar dan Anda sudah melakukan Re-deploy di Vercel. 🛠️' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Gagal mendapatkan analisis. Pastikan GEMINI_API_KEY sudah benar.' }]);
     }
+  };
+
+  const handleDecisionAdvice = async (decision) => {
+    if (!decision.trim() || loading) return;
+    setMessages(prev => [...prev, { role: 'user', content: `Penasihat Keputusan: ${decision}` }]);
+    const aiResponse = await askAI({
+      prompt: `Saya punya rencana keputusan keuangan: "${decision}". Berikan rekomendasi berimbang berdasarkan data keuangan saya. Apakah ini langkah yang bijak?`,
+      context: contextData,
+      type: 'chat'
+    });
+    if (aiResponse) {
+      setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+    }
+    setActiveTab('chat');
   };
 
   return (
@@ -129,8 +144,15 @@ export default function AIAssistant({ contextData }) {
                 </button>
               </div>
             </div>
-
+            {/* Tabs */}
             {!isMinimized && (
+              <div className="flex bg-slate-50 dark:bg-slate-950 p-1 mx-6 mt-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                <button onClick={() => setActiveTab('chat')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${activeTab === 'chat' ? 'bg-white dark:bg-slate-800 shadow-sm text-emerald-500' : 'text-slate-500'}`}>Asisten Chat</button>
+                <button onClick={() => setActiveTab('advisor')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${activeTab === 'advisor' ? 'bg-white dark:bg-slate-800 shadow-sm text-emerald-500' : 'text-slate-500'}`}>Decision Advisor</button>
+              </div>
+            )}
+
+            {!isMinimized && activeTab === 'chat' && (
               <>
                 {/* Messages */}
                 <div 
@@ -204,6 +226,35 @@ export default function AIAssistant({ contextData }) {
                   </div>
                 </form>
               </>
+            )}
+            {/* Advisor View */}
+            {!isMinimized && activeTab === 'advisor' && (
+              <div className="flex-1 p-6 space-y-4 bg-slate-50/50 dark:bg-slate-900/50 overflow-y-auto">
+                <div className="text-center space-y-2 mb-6">
+                  <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                    <Sparkles className="h-6 w-6 text-emerald-500" />
+                  </div>
+                  <div className="text-sm font-outfit font-bold">SteFin Advisor</div>
+                  <p className="text-[11px] text-slate-500">Gunakan AI untuk membimbing keputusan belanja atau investasi Anda.</p>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pilih Template atau Ketik:</div>
+                  {[
+                    "Apakah saya mampu beli Laptop 15jt bulan ini?",
+                    "Lebih baik bayar utang atau investasi?",
+                    "Rencana liburan 5jt, aman untuk dana darurat?",
+                  ].map(t => (
+                    <button key={t} onClick={() => { setInput(t); setActiveTab('chat'); }} className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 hover:border-emerald-500 transition">
+                      {t}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pt-4 mt-auto">
+                  <p className="text-[10px] text-slate-400 text-center italic">Advisor akan menganalisis berdasarkan saldo riil dan net worth Anda.</p>
+                </div>
+              </div>
             )}
           </motion.div>
         )}

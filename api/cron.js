@@ -4,6 +4,42 @@ import PDFDocument from 'pdfkit-table';
 
 const fmt = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
+// Helper to call Gemini AI for report analysis
+async function getAIAnalysis(userName, monthLabel, stats) {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) return null;
+
+  const prompt = `
+    Anda adalah konsultan keuangan pribadi cerdas bernama SteFin AI.
+    Berikan analisis terstruktur, ramah, dan mudah dimengerti untuk laporan bulanan pengguna bernama ${userName}.
+    
+    Data Keuangan Bulan ${monthLabel}:
+    - Total Pemasukan: ${fmt(stats.income)}
+    - Total Pengeluaran: ${fmt(stats.expense)}
+    - Sisa Dana: ${fmt(stats.income - stats.expense)}
+    
+    Format Analisis (Gunakan HTML sederhana seperti <b>, <p>, <ul>):
+    1. **Status Keuangan**: (Sehat/Waspada/Kritis)
+    2. **Insight Utama**: 1 hal menarik.
+    3. **Saran**: 1 langkah praktis.
+    
+    Gunakan gaya bahasa manusia yang memotivasi.
+  `;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    const data = await response.json();
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return text.replace(/```html/g, '').replace(/```/g, '');
+  } catch (e) {
+    return null;
+  }
+}
+
 function generatePDFBuffer(userName, targetMonthLabel, monthStats, globalStats, transactions) {
   return new Promise((resolve) => {
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
@@ -266,6 +302,8 @@ export default async function handler(req, res) {
       // Generate PDF Buffer
       const pdfBuffer = await generatePDFBuffer(userName, targetMonthLabel, monthStats, globalStats, monthTxList);
 
+      const aiAnalysis = await getAIAnalysis(userName, targetMonthLabel, monthStats);
+
       // 6. Buat Template HTML
       const html = `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
@@ -275,7 +313,16 @@ export default async function handler(req, res) {
           </div>
           <div style="padding: 32px; background-color: #ffffff;">
             <p>Halo <strong>${userName}</strong>,</p>
-            <p>Berikut adalah ringkasan arus kas Anda selama bulan <strong>${targetMonthLabel}</strong>. Rincian lengkap seluruh transaksi Anda telah kami lampirkan dalam dokumen PDF pada email ini.</p>
+            <p>Berikut adalah ringkasan arus kas Anda selama bulan <strong>${targetMonthLabel}</strong>.</p>
+            
+            ${aiAnalysis ? `
+            <div style="background-color: #f8fafc; border-left: 4px solid #10B981; padding: 16px; margin: 20px 0; font-size: 14px; line-height: 1.6;">
+              <strong style="color: #10B981; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">SteFin AI Analysis</strong><br/>
+              ${aiAnalysis}
+            </div>
+            ` : ''}
+
+            <p>Rincian lengkap seluruh transaksi Anda telah kami lampirkan dalam dokumen PDF pada email ini.</p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
               <tr style="border-bottom: 1px solid #e2e8f0;">
