@@ -60,22 +60,30 @@ export default function AIAssistant({ contextData }) {
   };
 
   const handleAnalysis = async () => {
+    if (loading) return; // Prevent multiple clicks
     setIsOpen(true);
     setIsMinimized(false);
-    const analysisPrompt = "Tolong berikan analisis keuangan mendalam saya untuk bulan ini. Berikan poin-poin penting dan saran tindakan.";
     
+    // Prune context to send only necessary data to save quota
+    const prunedContext = {
+      accounts: contextData.accounts?.map(a => ({ name: a.name, balance: a.balance, type: a.type })),
+      summary: contextData.summary,
+      recentTransactions: contextData.transactions?.slice(0, 10).map(t => ({ date: t.date, category: t.category, amount: t.amount, type: t.type }))
+    };
+
+    const analysisPrompt = "Analisis data saya secara expert & singkat. Berikan 1 skor (1-10) & 2 saran tajam.";
     setMessages(prev => [...prev, { role: 'user', content: 'Analisis Keuangan Saya 📊' }]);
     
     const aiResponse = await askAI({
       prompt: analysisPrompt,
-      context: contextData,
+      context: prunedContext,
       type: 'analysis'
     });
 
     if (aiResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     } else {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Gagal mendapatkan analisis. Pastikan GEMINI_API_KEY sudah benar.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Kuota AI sedang penuh atau koneksi terputus. Mohon tunggu 1 menit lalu coba lagi ya! 🙏' }]);
     }
   };
 
@@ -194,7 +202,8 @@ export default function AIAssistant({ contextData }) {
                   <div className="px-6 py-2 flex gap-2 overflow-x-auto no-scrollbar">
                     <button 
                       onClick={handleAnalysis}
-                      className="whitespace-nowrap rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 px-3 py-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition"
+                      disabled={loading}
+                      className="whitespace-nowrap rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 px-3 py-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition disabled:opacity-50"
                     >
                       📊 Analisis Bulan Ini
                     </button>
