@@ -79,14 +79,22 @@ export default function AIAssistant({ contextData }) {
     }
   };
 
-  const handleDecisionAdvice = async (decision) => {
-    if (!decision.trim() || loading) return;
-    setMessages(prev => [...prev, { role: 'user', content: `Penasihat Keputusan: ${decision}` }]);
+  const handleDecisionAdvice = async (decisionData) => {
+    const { item, cost, category, urgency } = decisionData;
+    if (!item.trim() || !cost || loading) return;
+
+    const formattedCost = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(cost);
+    
+    const decisionPrompt = `Saya punya rencana ${category}: "${item}" dengan biaya sekitar ${formattedCost}. Tingkat urgensinya adalah ${urgency}. Berikan rekomendasi berimbang berdasarkan data keuangan saya (saldo, net worth, cash flow). Apakah ini langkah yang bijak saat ini?`;
+
+    setMessages(prev => [...prev, { role: 'user', content: `Penasihat Keputusan:\n📌 Barang: ${item}\n💰 Biaya: ${formattedCost}\n🏷️ Tipe: ${category}\n⚡ Urgensi: ${urgency}` }]);
+    
     const aiResponse = await askAI({
-      prompt: `Saya punya rencana keputusan keuangan: "${decision}". Berikan rekomendasi berimbang berdasarkan data keuangan saya. Apakah ini langkah yang bijak?`,
+      prompt: decisionPrompt,
       context: contextData,
       type: 'chat'
     });
+
     if (aiResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     }
@@ -229,36 +237,103 @@ export default function AIAssistant({ contextData }) {
             )}
             {/* Advisor View */}
             {!isMinimized && activeTab === 'advisor' && (
-              <div className="flex-1 p-6 space-y-4 bg-slate-50/50 dark:bg-slate-900/50 overflow-y-auto">
-                <div className="text-center space-y-2 mb-6">
-                  <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <Sparkles className="h-6 w-6 text-emerald-500" />
-                  </div>
-                  <div className="text-sm font-outfit font-bold">SteFin Advisor</div>
-                  <p className="text-[11px] text-slate-500">Gunakan AI untuk membimbing keputusan belanja atau investasi Anda.</p>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pilih Template atau Ketik:</div>
-                  {[
-                    "Apakah saya mampu beli Laptop 15jt bulan ini?",
-                    "Lebih baik bayar utang atau investasi?",
-                    "Rencana liburan 5jt, aman untuk dana darurat?",
-                  ].map(t => (
-                    <button key={t} onClick={() => { setInput(t); setActiveTab('chat'); }} className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 hover:border-emerald-500 transition">
-                      {t}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="pt-4 mt-auto">
-                  <p className="text-[10px] text-slate-400 text-center italic">Advisor akan menganalisis berdasarkan saldo riil dan net worth Anda.</p>
-                </div>
-              </div>
+              <AdvisorForm 
+                onCalculate={handleDecisionAdvice} 
+                loading={loading}
+              />
             )}
           </motion.div>
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+function AdvisorForm({ onCalculate, loading }) {
+  const [formData, setFormData] = useState({
+    item: '',
+    cost: '',
+    category: 'Keinginan',
+    urgency: 'Santai'
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onCalculate(formData);
+  };
+
+  return (
+    <div className="flex-1 p-6 space-y-4 bg-slate-50/50 dark:bg-slate-900/50 overflow-y-auto">
+      <div className="text-center space-y-2 mb-4">
+        <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+          <Sparkles className="h-6 w-6 text-emerald-500" />
+        </div>
+        <div className="text-sm font-outfit font-bold">SteFin Advisor</div>
+        <p className="text-[11px] text-slate-500">Masukkan rencana keuangan Anda untuk dianalisis oleh AI.</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">Rencana / Barang</label>
+          <input 
+            required
+            placeholder="Contoh: Beli Laptop Baru"
+            value={formData.item}
+            onChange={e => setFormData({...formData, item: e.target.value})}
+            className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">Estimasi Biaya (Rp)</label>
+          <input 
+            required
+            type="number"
+            placeholder="0"
+            value={formData.cost}
+            onChange={e => setFormData({...formData, cost: e.target.value})}
+            className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs outline-none focus:border-emerald-500"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">Kategori</label>
+            <select 
+              value={formData.category}
+              onChange={e => setFormData({...formData, category: e.target.value})}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 py-2.5 text-xs outline-none focus:border-emerald-500"
+            >
+              <option value="Kebutuhan">Kebutuhan</option>
+              <option value="Keinginan">Keinginan</option>
+              <option value="Investasi">Investasi</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">Urgensi</label>
+            <select 
+              value={formData.urgency}
+              onChange={e => setFormData({...formData, urgency: e.target.value})}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 py-2.5 text-xs outline-none focus:border-emerald-500"
+            >
+              <option value="Mendesak">Mendesak</option>
+              <option value="Santai">Santai</option>
+              <option value="Jangka Panjang">Jangka Panjang</option>
+            </select>
+          </div>
+        </div>
+
+        <button 
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 text-xs font-bold text-white shadow-lg shadow-emerald-500/20 hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          Dapatkan Rekomendasi AI
+        </button>
+      </form>
+
+      <p className="text-[10px] text-slate-400 text-center italic mt-4">AI akan membandingkan biaya rencana dengan saldo & arus kas Anda.</p>
+    </div>
   );
 }
