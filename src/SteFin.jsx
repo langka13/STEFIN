@@ -24,6 +24,7 @@ import { useFirebaseStorage } from './hooks/useFirebaseStorage'
 import { useLanguage } from './contexts/LanguageContext.jsx'
 import AssetsPage from './AssetsPage'
 import AIAssistant from './AIAssistant'
+import { useAI } from './hooks/useAI'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const TAXONOMY = {
