@@ -8,50 +8,45 @@ export default async function handler(req, res) {
 
   if (!process.env.GEMINI_API_KEY) {
     console.error('[AI] Error: GEMINI_API_KEY is missing');
-    return res.status(500).json({ error: 'GEMINI_API_KEY belum terpasang di Vercel. Pastikan sudah tambah Env Variable dan melakukan RE-DEPLOY.' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY belum terpasang di Vercel.' });
   }
 
   try {
     let systemInstruction = `
-      Anda adalah SteFin AI, seorang konsultan keuangan pribadi profesional yang cerdas, ramah, dan solutif.
-      Tugas Anda adalah membantu pengguna mengelola keuangan mereka berdasarkan data transaksi dan saldo mereka.
-      Gunakan Bahasa Indonesia yang santai tapi profesional. Berikan saran yang praktis, konkret, dan mudah dipahami.
+      Anda adalah SteFin AI, pakar konsultan keuangan profesional.
+      PRINSIP KOMUNIKASI:
+      1. EXPERT & DETAIL: Gunakan logika keuangan (Emergency Fund, Savings Rate, 50/30/20, Debt-to-Income).
+      2. EFEKTIF: Jangan bertele-tele. Langsung ke inti analisis dan saran.
+      3. DATA-DRIVEN: Selalu kaitkan jawaban dengan angka riil dari konteks yang diberikan.
+      4. NO FLUFF: Hindari kalimat pembuka/penutup yang klise jika tidak menambah nilai informasi.
     `;
 
     if (type === 'analysis') {
       systemInstruction += `
-        Fokus utama Anda saat ini adalah melakukan ANALISIS KEUANGAN mendalam.
-        Identifikasi pola pengeluaran yang tidak sehat, hitung savings rate, dan berikan rekomendasi penghematan.
+        Fokus: ANALISIS MENDALAM. Berikan poin-poin kritis tentang pola belanja, kebocoran dana, dan efisiensi tabungan.
       `;
     }
 
     if (type === 'suggestions') {
       systemInstruction += `
-        Tugas Anda adalah memberikan 3 SARAN SINGKAT (max 15 kata per saran) untuk dashboard keuangan.
-        Saran harus spesifik berdasarkan data yang diberikan (misal: "Pengeluaran makan Anda tinggi, coba masak di rumah").
-        PENTING: Kembalikan hanya dalam format JSON array STRING seperti ini: ["Saran 1", "Saran 2", "Saran 3"]. 
-        Jangan berikan teks tambahan lain.
+        Fokus: 3 SARAN SINGKAT & TAJAM (max 12 kata per saran). 
+        Format: Hanya JSON array STRING. Contoh: ["Pangkas biaya makan 10% untuk dana darurat", ...]. No other text.
       `;
     }
 
     const fullPrompt = `
-      Konteks Keuangan Pengguna:
+      Konteks Keuangan:
       ${JSON.stringify(context, null, 2)}
 
-      Pertanyaan/Permintaan Pengguna:
+      Permintaan:
       ${prompt}
-
-      Instruksi Tambahan:
-      1. Gunakan emoji agar menarik.
-      2. Selalu referensikan data angka dari konteks.
     `;
 
-    // Menggunakan gemini-flash-latest yang terkonfirmasi stabil
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
     
     const payload = {
       contents: [{ role: "user", parts: [{ text: systemInstruction + "\n\n" + fullPrompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
+      generationConfig: { temperature: 0.2, maxOutputTokens: 800 } // Low temp for more precise/expert answers
     };
 
     const response = await fetch(url, {
@@ -63,20 +58,20 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("[AI] REST Error:", data);
-      throw new Error(data.error?.message || "Gagal menghubungi Gemini API");
+       // Fallback to gemini-flash-latest if 2.0-flash fails
+       const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
+       const fbRes = await fetch(fallbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+       const fbData = await fbRes.json();
+       if (!fbRes.ok) throw new Error(fbData.error?.message || "AI API Error");
+       return res.status(200).json({ text: fbData.candidates?.[0]?.content?.parts?.[0]?.text || "" });
     }
 
     let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
-    // Bersihkan JSON jika AI menyertakan backticks
-    if (type === 'suggestions') {
-      text = text.replace(/```json|```/g, '').trim();
-    }
+    if (type === 'suggestions') text = text.replace(/```json|```/g, '').trim();
 
     return res.status(200).json({ text });
   } catch (error) {
     console.error('AI Error:', error);
-    return res.status(500).json({ error: 'Gagal memproses permintaan AI: ' + error.message });
+    return res.status(500).json({ error: 'Gagal memproses AI: ' + error.message });
   }
 }

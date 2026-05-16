@@ -10,24 +10,23 @@ async function getAIAnalysis(userName, monthLabel, stats) {
   if (!GEMINI_API_KEY) return null;
 
   const prompt = `
-    Anda adalah konsultan keuangan pribadi cerdas bernama SteFin AI.
-    Berikan analisis terstruktur, ramah, dan mudah dimengerti untuk laporan bulanan pengguna bernama ${userName}.
+    Anda adalah Pakar Analis Keuangan SteFin AI.
+    Berikan Financial Review untuk ${userName} (Bulan ${monthLabel}):
+    - Pemasukan: ${fmt(stats.income)}
+    - Pengeluaran: ${fmt(stats.expense)}
+    - Sisa: ${fmt(stats.income - stats.expense)}
     
-    Data Keuangan Bulan ${monthLabel}:
-    - Total Pemasukan: ${fmt(stats.income)}
-    - Total Pengeluaran: ${fmt(stats.expense)}
-    - Sisa Dana: ${fmt(stats.income - stats.expense)}
+    TUGAS: Berikan analisis EXPERT, DETAIL, namun EFEKTIF (Singkat & Padat).
     
-    Format Analisis (Gunakan HTML sederhana seperti <b>, <p>, <ul>):
-    1. **Status Keuangan**: (Sehat/Waspada/Kritis)
-    2. **Insight Utama**: 1 hal menarik.
-    3. **Saran**: 1 langkah praktis.
+    Struktur (HTML):
+    1. <b>Kesehatan Finansial</b>: Berikan skor 1-10 dan alasan teknis singkat.
+    2. <b>Analisis Pengeluaran</b>: Identifikasi jika pengeluaran tidak efisien.
+    3. <b>Action Plan</b>: 2 langkah strategis untuk bulan depan agar aset tumbuh.
     
-    Gunakan gaya bahasa manusia yang memotivasi.
+    Hanya berikan konten inti. Jangan gunakan kalimat pembuka/penutup basa-basi.
   `;
 
   try {
-    // Menggunakan v1beta dan gemini-2.0-flash sesuai ketersediaan
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -227,27 +226,24 @@ export default async function handler(req, res) {
           </div>
           <div style="padding: 32px; background-color: #ffffff;">
             <p>Halo <strong>${userData.name || 'Pengguna SteFin'}</strong>,</p>
-            <p>Laporan keuangan otomatis Anda bulan ini sudah siap.</p>
+            <p>Berikut adalah <b>Financial Review</b> bulan ini:</p>
             
-            ${aiAnalysis ? `
             <div style="background-color: #f8fafc; border-left: 4px solid #10B981; padding: 16px; margin: 20px 0; font-size: 14px; line-height: 1.6;">
-              <strong style="color: #10B981; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">SteFin AI Analysis</strong><br/>
-              ${aiAnalysis}
+              ${aiAnalysis || '<i>Analisis tidak dapat dimuat.</i>'}
             </div>
-            ` : ''}
 
             <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
               <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 12px 0; color: #64748b;">Total Pemasukan</td>
+                <td style="padding: 12px 0; color: #64748b;">Pemasukan</td>
                 <td style="padding: 12px 0; text-align: right; color: #10B981; font-weight: bold;">${fmt(income)}</td>
               </tr>
               <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 12px 0; color: #64748b;">Total Pengeluaran</td>
+                <td style="padding: 12px 0; color: #64748b;">Pengeluaran</td>
                 <td style="padding: 12px 0; text-align: right; color: #EF4444; font-weight: bold;">${fmt(expense)}</td>
               </tr>
             </table>
             
-            <p style="margin-top: 24px;">Rincian lengkap posisi aset dan transaksi Anda telah dilampirkan dalam PDF.</p>
+            <p style="margin-top: 24px; font-size: 13px; color: #64748b;">Rincian lengkap posisi aset terlampir pada PDF.</p>
           </div>
           <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
             &copy; SteFin Assistant.
