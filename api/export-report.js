@@ -27,8 +27,8 @@ async function getAIAnalysis(userName, monthLabel, stats) {
   `;
 
   try {
-    // Mencoba model gemini-1.5-flash (biasanya paling stabil)
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    // Menggunakan v1beta dan gemini-2.0-flash sesuai daftar model yang tersedia
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
@@ -38,13 +38,16 @@ async function getAIAnalysis(userName, monthLabel, stats) {
     
     if (data.error) {
        console.error("Gemini API Error:", data.error);
-       return `<i>AI Error: ${data.error.message}</i>`;
+       // Jika kuota habis (429), beri tahu user
+       if (data.error.code === 429) return "<i>AI sedang istirahat (Quota limit tercapai). Coba lagi beberapa saat lagi ya!</i>";
+       return `<i>AI Error (${data.error.code}): ${data.error.message}</i>`;
     }
 
     let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (!text) return "<i>AI tidak memberikan respon. Coba lagi nanti.</i>";
     
-    return text.replace(/```html/g, '').replace(/```/g, '');
+    // Bersihkan markdown
+    return text.replace(/```html/g, '').replace(/```/g, '').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   } catch (e) {
     console.error("Fetch Error:", e);
     return `<i>Koneksi ke AI terputus: ${e.message}</i>`;

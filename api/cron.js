@@ -27,14 +27,15 @@ async function getAIAnalysis(userName, monthLabel, stats) {
   `;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+    // Menggunakan v1beta dan gemini-2.0-flash sesuai ketersediaan
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
     const data = await response.json();
     let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    return text.replace(/```html/g, '').replace(/```/g, '');
+    return text.replace(/```html/g, '').replace(/```/g, '').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   } catch (e) {
     return null;
   }
@@ -123,110 +124,34 @@ function generatePDFBuffer(userName, targetMonthLabel, monthStats, globalStats, 
   });
 }
 
-let db;
-
 export default async function handler(req, res) {
-  // Mode test via query parameter (?test=true)
-  const isTest = req.query.test === 'true';
-
-  // 1. Verifikasi Vercel Cron Secret (Agar API ini tidak bisa ditembak sembarangan oleh orang luar)
-  // Untuk kemudahan testing via browser sementara, kita bisa membiarkan test=true jalan tanpa secret
-  // NAMUN, karena ini untuk keamanan, tetap wajibkan secret ATAU izinkan local dev
-  const authHeader = req.headers.authorization;
-  if (!isTest && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
     return res.status(401).end('Unauthorized');
   }
 
   try {
     if (!admin.apps.length) {
-      let credential;
-
-      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        // Cara Paling Aman: Menggunakan JSON atau Base64 Encoded JSON
-        try {
-          let jsonStr = process.env.FIREBASE_SERVICE_ACCOUNT;
-          // Jika string tidak berawal kurung kurawal, asumsikan itu format Base64
-          if (!jsonStr.trim().startsWith('{')) {
-            jsonStr = Buffer.from(jsonStr, 'base64').toString('utf8');
-          }
-          credential = admin.credential.cert(JSON.parse(jsonStr));
-        } catch (err) {
-          throw new Error("Gagal membaca FIREBASE_SERVICE_ACCOUNT. Error: " + err.message);
-        }
-      } else {
-        // Fallback ke cara lama jika user masih pakai variable terpisah
-        if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-          throw new Error("Missing Firebase credentials in Vercel Environment Variables. Please use FIREBASE_SERVICE_ACCOUNT.");
-        }
-
-        let rawBase64 = process.env.FIREBASE_PRIVATE_KEY
-          .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-          .replace(/-----END PRIVATE KEY-----/g, '')
-          .replace(/\\n/g, '')
-          .replace(/[\s\n\r]+/g, '')
-          .replace(/"/g, '');
-        
-        const formattedBase64 = rawBase64.match(/.{1,64}/g)?.join('\n') || '';
-        const pk = `-----BEGIN PRIVATE KEY-----\n${formattedBase64}\n-----END PRIVATE KEY-----\n`;
-
-        credential = admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: pk,
-        });
-      }
-
-      admin.initializeApp({ credential });
+      const jsonStr = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8');
+      admin.initializeApp({ credential: admin.credential.cert(JSON.parse(jsonStr)) });
     }
-    if (!db) db = admin.firestore();
+    const db = admin.firestore();
 
-    // 2. Setup Nodemailer menggunakan Gmail
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER, // Alamat Gmail Anda
-        pass: process.env.GMAIL_PASS, // App Password 16-digit dari Google Account
-      },
-    });
+    const usersSnapshot = await db.collection('users').get();
+    const targetMonth = new Date().toISOString().slice(0, 7);
+    const targetMonthLabel = new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
-    // 3. Tentukan bulan laporan
-    // Jika test=true, kita gunakan bulan INI (karena data transaksi biasanya ada di bulan ini). 
-    // Jika jalannya otomatis (cron), gunakan bulan LALU.
-    const now = new Date();
-    const targetDate = isTest ? now : new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const targetMonthStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
-    
-    // Nama bulan untuk bahasa Indonesia
-    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    const targetMonthLabel = `${months[targetDate.getMonth()]} ${targetDate.getFullYear()}${isTest ? ' (TESTING MODE)' : ''}`;
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const uid = userDoc.id;
 
-    // 4. Ambil data seluruh user dari Firebase Auth (karena email ada di sistem Auth)
-    const listUsersResult = await admin.auth().listUsers();
-    const emailPromises = [];
+      if (!userData.email) continue;
 
-    for (const userRecord of listUsersResult.users) {
-      if (!userRecord.email) continue;
-      const uid = userRecord.uid;
-
-      // Ambil nama user dari profile jika ada (fallback ke display name auth)
-      let userName = userRecord.displayName || 'Pengguna SteFin';
-      try {
-        const profileSnap = await db.collection('users').doc(uid).collection('meta').doc('profile').get();
-        if (profileSnap.exists && profileSnap.data().name) {
-          userName = profileSnap.data().name;
-        }
-      } catch (e) {
-        // Abaikan jika tidak ada profil
-      }
-
-      // 5. Ambil data seluruh akun dan seluruh transaksi untuk menghitung Kekayaan Bersih (Net Worth)
       const accSnapshot = await db.collection('users').doc(uid).collection('accounts').get();
       const accounts = accSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
       const allTxSnapshot = await db.collection('users').doc(uid).collection('transactions').get();
       const allTransactions = allTxSnapshot.docs.map(d => d.data());
 
-      // Kalkulasi Saldo Kas
       const txByAccount = {};
       allTransactions.forEach(tx => {
         if (!txByAccount[tx.accountId]) txByAccount[tx.accountId] = [];
@@ -267,7 +192,6 @@ export default async function handler(req, res) {
         totalBalance += currentBalance;
       });
 
-      // Kalkulasi Aset dan Utang
       const assetPlus = allTransactions.filter(t => t.type === 'asset' && t.category !== 'Settlement').reduce((sum, t) => sum + t.amount, 0);
       const assetMinus = allTransactions.filter(t => t.type === 'asset' && t.category === 'Settlement').reduce((sum, t) => sum + t.amount, 0);
       const receivables = allTransactions.filter(t => t.type === 'transfer' && t.category === 'Piutang').reduce((sum, t) => sum + t.amount, 0);
@@ -275,45 +199,35 @@ export default async function handler(req, res) {
       
       const totalAssets = assetPlus + receivables - assetMinus;
       const netWorth = totalBalance + totalAssets - debts;
-
       const globalStats = { totalBalance, assets: totalAssets, debts, netWorth };
 
-      // 6. Filter transaksi hanya untuk bulan target
       let income = 0;
       let expense = 0;
-      const monthTxList = [];
-
-      allTransactions.forEach(tx => {
-        if (tx.date && tx.date.startsWith(targetMonthStr)) {
-          monthTxList.push(tx);
-          if (tx.type === 'income') income += tx.amount || 0;
-          if (tx.type === 'expense') expense += tx.amount || 0;
-        }
+      const monthTxList = allTransactions.filter(tx => tx.date && tx.date.startsWith(targetMonth)).sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      monthTxList.forEach(tx => {
+        if (tx.type === 'income') income += tx.amount || 0;
+        if (tx.type === 'expense') expense += tx.amount || 0;
       });
 
-      // Urutkan transaksi berdasarkan tanggal untuk PDF
-      monthTxList.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const aiAnalysis = await getAIAnalysis(userData.name || 'Pengguna SteFin', targetMonthLabel, { income, expense });
 
-      // Lewati pengiriman email jika user tidak ada transaksi di bulan tersebut (Kecuali sedang Test Mode)
-      if (!isTest && income === 0 && expense === 0) continue;
+      const pdfBuffer = await generatePDFBuffer(userData.name || 'Pengguna SteFin', targetMonthLabel, { income, expense }, globalStats, monthTxList);
 
-      const monthStats = { income, expense };
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS }
+      });
 
-      // Generate PDF Buffer
-      const pdfBuffer = await generatePDFBuffer(userName, targetMonthLabel, monthStats, globalStats, monthTxList);
-
-      const aiAnalysis = await getAIAnalysis(userName, targetMonthLabel, monthStats);
-
-      // 6. Buat Template HTML
       const html = `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #10B981; color: white; padding: 24px; text-align: center;">
-            <h2 style="margin: 0;">SteFin Financial Statement</h2>
-            <p style="margin: 5px 0 0 0; opacity: 0.9;">Ringkasan Keuangan Anda - ${targetMonthLabel}</p>
+            <h2 style="margin: 0;">Laporan Keuangan SteFin</h2>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">${targetMonthLabel}</p>
           </div>
           <div style="padding: 32px; background-color: #ffffff;">
-            <p>Halo <strong>${userName}</strong>,</p>
-            <p>Berikut adalah ringkasan arus kas Anda selama bulan <strong>${targetMonthLabel}</strong>.</p>
+            <p>Halo <strong>${userData.name || 'Pengguna SteFin'}</strong>,</p>
+            <p>Laporan keuangan otomatis Anda bulan ini sudah siap.</p>
             
             ${aiAnalysis ? `
             <div style="background-color: #f8fafc; border-left: 4px solid #10B981; padding: 16px; margin: 20px 0; font-size: 14px; line-height: 1.6;">
@@ -322,8 +236,6 @@ export default async function handler(req, res) {
             </div>
             ` : ''}
 
-            <p>Rincian lengkap seluruh transaksi Anda telah kami lampirkan dalam dokumen PDF pada email ini.</p>
-            
             <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 12px 0; color: #64748b;">Total Pemasukan</td>
@@ -333,45 +245,26 @@ export default async function handler(req, res) {
                 <td style="padding: 12px 0; color: #64748b;">Total Pengeluaran</td>
                 <td style="padding: 12px 0; text-align: right; color: #EF4444; font-weight: bold;">${fmt(expense)}</td>
               </tr>
-              <tr>
-                <td style="padding: 12px 0; font-weight: bold;">Net Savings (Selisih)</td>
-                <td style="padding: 12px 0; text-align: right; font-weight: bold; font-size: 1.1em; color: ${(income - expense) >= 0 ? '#10B981' : '#EF4444'};">${fmt(income - expense)}</td>
-              </tr>
             </table>
-
-            <p style="margin-top: 32px; font-size: 14px; color: #64748b; line-height: 1.5;">
-              Terus pantau arus kas Anda untuk mencapai kebebasan finansial.<br/>
-              Buka aplikasi SteFin untuk melihat detail analitik selengkapnya.
-            </p>
+            
+            <p style="margin-top: 24px;">Rincian lengkap posisi aset dan transaksi Anda telah dilampirkan dalam PDF.</p>
           </div>
           <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
-            &copy; ${now.getFullYear()} SteFin (Smart Personal Finance). Pesan ini dibuat secara otomatis. Harap jangan membalas email ini.
+            &copy; SteFin Assistant.
           </div>
         </div>
       `;
 
-      // 7. Simpan proses pengiriman ke array Promise
-      emailPromises.push(
-        transporter.sendMail({
-          from: `"SteFin Assistant" <${process.env.GMAIL_USER}>`,
-          to: userRecord.email,
-          subject: `Laporan Keuangan SteFin - ${targetMonthLabel}`,
-          html: html,
-          attachments: [
-            {
-              filename: `SteFin_Statement_${targetMonthLabel.replace(/\s+/g, '_')}.pdf`,
-              content: pdfBuffer,
-              contentType: 'application/pdf'
-            }
-          ]
-        })
-      );
+      await transporter.sendMail({
+        from: `"SteFin AI" <${process.env.GMAIL_USER}>`,
+        to: userData.email,
+        subject: `Laporan Keuangan Otomatis - ${targetMonthLabel}`,
+        html: html,
+        attachments: [{ filename: `SteFin_Monthly_Report_${targetMonth}.pdf`, content: pdfBuffer }]
+      });
     }
 
-    // Eksekusi pengiriman massal
-    await Promise.all(emailPromises);
-
-    return res.status(200).json({ success: true, emailsSent: emailPromises.length });
+    return res.status(200).json({ success: true, message: 'Monthly reports sent' });
   } catch (error) {
     console.error('CRON ERROR:', error);
     return res.status(500).json({ error: error.message });
