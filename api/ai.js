@@ -15,8 +15,7 @@ export default async function handler(req, res) {
 
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
+    
     let systemInstruction = `
       Anda adalah SteFin AI, seorang konsultan keuangan pribadi profesional yang cerdas, ramah, dan solutif.
       Tugas Anda adalah membantu pengguna mengelola keuangan mereka berdasarkan data transaksi dan saldo mereka.
@@ -45,9 +44,21 @@ export default async function handler(req, res) {
       4. Selalu referensikan data angka dari konteks yang diberikan.
     `;
 
-    const result = await model.generateContent([systemInstruction, fullPrompt]);
-    const response = await result.response;
-    const text = response.text();
+    let text;
+    try {
+      // Coba model 1.5 flash (lebih pintar & murah)
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const result = await model.generateContent([systemInstruction, fullPrompt]);
+      const response = await result.response;
+      text = response.text();
+    } catch (flashError) {
+      console.warn('Flash model failed, falling back to gemini-pro:', flashError.message);
+      // Fallback ke gemini-pro (lebih stabil di beberapa region)
+      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const result = await model.generateContent([systemInstruction, fullPrompt]);
+      const response = await result.response;
+      text = response.text();
+    }
 
     return res.status(200).json({ text });
   } catch (error) {
