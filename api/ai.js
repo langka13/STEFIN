@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     const sys = `SteFin Expert. Brief, technical, actionable. Use context numbers. No fluff.`;
     const userPrompt = `Context: ${JSON.stringify(context)}\nRequest: ${prompt}`;
 
-    // Menggunakan gemini-1.5-flash-8b (Paling ringan, kuota RPM paling longgar)
+    // Menggunakan gemini-2.5-flash (Paling ringan, kuota RPM paling longgar)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
     
     const payload = {
@@ -26,9 +26,9 @@ export default async function handler(req, res) {
 
     let data = await response.json();
 
-    // Fallback jika 8b tidak ditemukan
+    // Fallback jika tidak ditemukan
     if (!response.ok && response.status === 404) {
-      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`;
+      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
       response = await fetch(fallbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       data = await response.json();
     }
