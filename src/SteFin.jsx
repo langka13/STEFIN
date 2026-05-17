@@ -312,7 +312,7 @@ export default function SteFin() {
       setLoadingSuggestions(true);
       try {
         const res = await askAI({
-          prompt: "Berikan saran otomatis singkat untuk dashboard saya.",
+          prompt: "Berikan 3 saran otomatis singkat untuk dashboard keuangan ini. Balas HANYA dengan JSON array of strings tanpa awalan/akhiran markdown block. Contoh tepat: [\"Kurangi jajan\", \"Tabungan sudah bagus\", \"Siapkan dana darurat\"]",
           context: {
             totalBalance,
             netWorth,
