@@ -11,7 +11,7 @@ async function getAIAnalysis(userName, monthLabel, stats) {
   const prompt = `SteFin AI. Review ${userName} (${monthLabel}): In:${fmt(stats.income)} Out:${fmt(stats.expense)}. Berikan Analisis Keuangan Expert (HTML): 1.Kesehatan(1-10) 2.Insight 3.Action Plan. Singkat & Padat. No sapaan.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 500 } })
