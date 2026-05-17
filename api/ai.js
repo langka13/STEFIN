@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const userPrompt = `Context: ${JSON.stringify(context)}\nRequest: ${prompt}`;
 
     // Menggunakan gemini-1.5-flash-8b (Paling ringan, kuota RPM paling longgar)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
     
     const payload = {
       contents: [{ role: "user", parts: [{ text: sys + "\n" + userPrompt }] }],
