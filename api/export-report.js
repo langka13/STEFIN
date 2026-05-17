@@ -7,7 +7,7 @@ const fmt = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currenc
 // Helper to call Gemini AI for report analysis
 async function getAIAnalysis(userName, monthLabel, stats) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  if (!GEMINI_API_KEY) return null;
+  if (!GEMINI_API_KEY) return "<i>AI Analysis tidak muncul karena GEMINI_API_KEY belum dikonfigurasi di Vercel.</i>";
 
   const prompt = `
     Anda adalah konsultan keuangan pribadi cerdas bernama SteFin AI.
@@ -27,16 +27,27 @@ async function getAIAnalysis(userName, monthLabel, stats) {
   `;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+    // Mencoba model gemini-1.5-flash (biasanya paling stabil)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
+    
     const data = await response.json();
+    
+    if (data.error) {
+       console.error("Gemini API Error:", data.error);
+       return `<i>AI Error: ${data.error.message}</i>`;
+    }
+
     let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (!text) return "<i>AI tidak memberikan respon. Coba lagi nanti.</i>";
+    
     return text.replace(/```html/g, '').replace(/```/g, '');
   } catch (e) {
-    return null;
+    console.error("Fetch Error:", e);
+    return `<i>Koneksi ke AI terputus: ${e.message}</i>`;
   }
 }
 
@@ -136,14 +147,12 @@ export default async function handler(req, res) {
     }
     const db = admin.firestore();
 
-    // 1. Ambil data akun dan transaksi (Logika akurat dari cron.js)
     const accSnapshot = await db.collection('users').doc(uid).collection('accounts').get();
     const accounts = accSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
     const allTxSnapshot = await db.collection('users').doc(uid).collection('transactions').get();
     const allTransactions = allTxSnapshot.docs.map(d => d.data());
 
-    // Kalkulasi Saldo Kas Riil
     const txByAccount = {};
     allTransactions.forEach(tx => {
       if (!txByAccount[tx.accountId]) txByAccount[tx.accountId] = [];
@@ -193,7 +202,6 @@ export default async function handler(req, res) {
     const netWorth = totalBalance + totalAssets - debts;
     const globalStats = { totalBalance, assets: totalAssets, debts, netWorth };
 
-    // 2. Filter transaksi bulan target
     let income = 0;
     let expense = 0;
     const monthTxList = allTransactions.filter(tx => tx.date && tx.date.startsWith(targetMonth)).sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -203,10 +211,8 @@ export default async function handler(req, res) {
       if (tx.type === 'expense') expense += tx.amount || 0;
     });
 
-    // 3. Ambil Analisis AI
     const aiAnalysis = await getAIAnalysis(userName, targetMonthLabel, { income, expense });
 
-    // 4. Generate PDF dengan format Preferred
     const pdfBuffer = await generatePDFBuffer(userName, targetMonthLabel, { income, expense }, globalStats, monthTxList);
 
     const transporter = nodemailer.createTransport({
@@ -224,12 +230,10 @@ export default async function handler(req, res) {
           <p>Halo <strong>${userName}</strong>,</p>
           <p>Laporan keuangan Anda sudah siap.</p>
           
-          ${aiAnalysis ? `
           <div style="background-color: #f8fafc; border-left: 4px solid #10B981; padding: 16px; margin: 20px 0; font-size: 14px; line-height: 1.6;">
             <strong style="color: #10B981; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">SteFin AI Analysis</strong><br/>
-            ${aiAnalysis}
+            ${aiAnalysis || '<i>Analisis tidak dapat dimuat.</i>'}
           </div>
-          ` : ''}
 
           <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
             <tr style="border-bottom: 1px solid #e2e8f0;">
