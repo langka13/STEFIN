@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Slate palette scaled to anchor on #222222 for dark mode backgrounds */
+  --color-slate-50: #f7f7f7;
+  --color-slate-100: #eeeeee;
+  --color-slate-200: #e0e0e0;
+  --color-slate-300: #bbbbbb;
+  --color-slate-400: #888888;
+  --color-slate-500: #666666;
+  --color-slate-600: #555555;
+  --color-slate-700: #444444;
+  --color-slate-800: #333333;
+  --color-slate-900: #222222;
+  --color-slate-950: #161616;
+
+  /* Emerald palette explicitly clamped to #89E900 for max compliance */
+  --color-emerald-50: #f6ffea;
+  --color-emerald-100: #eafdd1;
+  --color-emerald-200: #c9fc80;
+  --color-emerald-300: #aaf63d;
+  --color-emerald-400: #89E900;
+  --color-emerald-500: #89E900;
+  --color-emerald-600: #89E900;
+  --color-emerald-700: #67b800;
+  --color-emerald-800: #407005;
+  --color-emerald-900: #365e09;
+  --color-emerald-950: #1b3500;
+  
+  --color-brand-lime: #89E900;
+  
+  --font-inter: "Inter", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+}
+
+@layer base {
+  :root {
+    --accent-from: #89E900;
+    --accent-to: #89E900;
+    --accent-ring: #89E900;
+  }
+}
+
+/* ── Modal backdrop fade-in ─────────────────────────────────────────────── */
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal panel slide-up + fade ────────────────────────────────────────── */
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ── ModalSheet slide-up (dari bawah, untuk mobile bottom sheet) ─────── */
+@keyframes sheetIn {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Sidebar slide-in (dari kiri) ───────────────────────────────────────── */
+@keyframes sidebarIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.modal-backdrop-enter {
+  animation: backdropIn 150ms ease-out both;
+}
+
+.modal-enter {
+  animation: modalIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.modal-sheet-enter {
+  animation: sheetIn 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.sidebar-overlay {
+  animation: backdropIn 150ms ease-out both;
+}
+
+.sidebar-panel {
+  animation: sidebarIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+/* ── Reduce motion untuk aksesibilitas ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop-enter,
+  .modal-enter,
+  .modal-sheet-enter,
+  .sidebar-overlay,
+  .sidebar-panel {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── PIN shake (error indicator) ────────────────────────────────────────── */
+@keyframes pinShake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-8px); }
+  40%       { transform: translateX(8px); }
+  60%       { transform: translateX(-6px); }
+  80%       { transform: translateX(6px); }
+}
+
+.pin-shake {
+  animation: pinShake 0.4s ease-out;
+}
+
+/* ── Assets accordion expand ────────────────────────────────────────────── */
+@keyframes accordionIn {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 600px; }
+}
+
+.assets-accordion {
+  animation: accordionIn 200ms ease-out both;
+  overflow: hidden;
+}

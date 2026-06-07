@@ -1,0 +1,17 @@
+<svg width="192" height="192" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg { fill: #ffffff; }
+    .wallet { fill: #222222; opacity: 0.95; }
+    .accent { fill: #ffffff; opacity: 0.5; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #1a1a1a; }
+      .wallet { fill: #eeeeee; }
+      .accent { fill: #222222; }
+    }
+  </style>
+  <rect width="100" height="100" rx="24" class="bg" />
+  
+  <rect x="28" y="38" width="44" height="36" rx="10" class="wallet" />
+  <circle cx="62" cy="38" r="18" fill="#89E900" opacity="0.95" />
+  <rect x="36" y="56" width="20" height="6" rx="3" class="accent" />
+</svg>
